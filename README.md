@@ -133,7 +133,7 @@ kdf:
       electrum:
         - { url: "electrumx.radiant4people.com:50012", protocol: SSL }
         - { url: "electrumx2.radiant4people.com:50012", protocol: SSL }
-        - { url: "electrumx.rxd-radiant.com:50022", protocol: SSL }
+        - { url: "electrumx.rxd-radiant.com:50012", protocol: SSL }
 ```
 
 To activate manually instead:

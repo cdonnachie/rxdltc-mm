@@ -165,7 +165,7 @@ kdf:
       electrum:
         - { url: "electrumx.radiant4people.com:50012", protocol: SSL }
         - { url: "electrumx2.radiant4people.com:50012", protocol: SSL }
-        - { url: "electrumx.rxd-radiant.com:50022", protocol: SSL }
+        - { url: "electrumx.rxd-radiant.com:50012", protocol: SSL }
     LTC-segwit:
       # Key must equal pair.quote. Do NOT add `address_format: segwit` to a plain `LTC` entry: this
       # KDF fork rejects a segwit request for a coin whose coins-file entry is not segwit
