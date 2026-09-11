@@ -20,6 +20,11 @@ export default function LiveDialog({ onCancel, onConfirm }: { onCancel: () => vo
         <p style={{ marginTop: 12 }}>Type the confirmation phrase exactly to continue:</p>
         <p className="mono small muted">{phrase}</p>
         <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="confirmation phrase" autoFocus />
+        {typed && typed !== phrase && (
+          <p className="small" style={{ color: "var(--amber)", margin: "6px 0 0" }}>
+            {phrase.startsWith(typed) ? `${phrase.length - typed.length} character(s) missing` : "does not match the phrase above (check spelling and underscores)"}
+          </p>
+        )}
         <div className="row" style={{ marginTop: 14, justifyContent: "flex-end" }}>
           <button onClick={onCancel}>Cancel</button>
           <button className="danger" disabled={!phrase || typed !== phrase} onClick={() => onConfirm({ phrase: typed, startSmall })}>Start live</button>
