@@ -1,0 +1,32 @@
+# secrets and local state -- never commit these
+.env
+*.env
+!.env.example
+data/
+*.sqlite
+*.sqlite3
+*.db
+config.yaml
+config.local.yaml
+*.bak
+MM2.json
+*.log
+!docs/*.log
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# desktop app (see ui/.gitignore for the rest)
+ui/src-tauri/gen/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

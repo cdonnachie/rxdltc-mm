@@ -1,0 +1,11 @@
+{
+  "gui": "rxdltc-mm",
+  "netid": 6133,
+  "seednodes": ["staking1.gleec.com", "staking2.gleec.com", "seed01.kmdefi.net", "seed03.kmdefi.net"],
+  "rpcip": "127.0.0.1",
+  "rpcport": 7783,
+  "rpc_password": "Change-Me-2026!x",
+  "passphrase": "twelve or twenty four words of a DEDICATED liquidity wallet never your main wallet",
+  "dbdir": "./DB",
+  "i_am_seed": false
+}

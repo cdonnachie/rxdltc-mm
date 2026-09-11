@@ -1,0 +1,22 @@
+INFO    bot: bot starting dry_run=True pair=RXD/LTC poll=30
+WARNING bot: DRY RUN MODE: no orders will be placed or cancelled
+INFO    bot: reference price fair_rxd_per_ltc=2456822.09 sources=3 disagreement_pct=3.677 prices="{'coingecko': '2501200', 'coinpaprika': '2410855', 'gleec_cex': '2456822'}" synthetic=['gleec_cex'] rejected={}
+INFO    bot: connected to KDF version=2.4.0-beta_fake
+INFO    bot: reconcile: adopting existing order side=ask uuid=11111111-aaaa-bbbb-cccc-111111111111 known=False price_rxd_per_ltc=2754821 remaining=135000
+INFO    bot: swap completed uuid=33333333-aaaa-bbbb-cccc-333333333333 side=ask gave="1000 RXD" received="0.00036 LTC"
+INFO    state: STATE STARTING -> ACTIVE reason="reference price and KDF state available"
+INFO    bot: targets fair=2456822 bid_rxd_per_ltc=2486330 ask_rxd_per_ltc=2437096 bid_ltc_per_rxd=0.000000402199 ask_ltc_per_rxd=0.000000410324 inventory_rxd_pct=55.0 skew_pct=0.199 clamped=False bid_size_ltc=0.045 ask_size_rxd=135000 quote_bid=True quote_ask=True notes=[]
+INFO    bot: planner note="bid 2486330 would cross best foreign ask 2702703 RXD/LTC; skipped"
+INFO    bot: existing order side=ask uuid=11111111-aaaa-bbbb-cccc-111111111111 price_rxd_per_ltc=2754821 remaining=135000 of=135000 unit=RXD age_s=900 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=0 best_foreign_ask_rxd_per_ltc=2702703 best_foreign_bid_rxd_per_ltc=None
+INFO    state: STATE ACTIVE -> REPRICING reason="orders need changes"
+INFO    bot: ACTION: DRY RUN: would cancel ask uuid=11111111-aaaa-bbbb-cccc-111111111111 reason="existing quote 2754821 is outside the safety envelope"
+INFO    kdf.dry_run: DRY RUN: would cancel order uuid=11111111-aaaa-bbbb-cccc-111111111111
+INFO    bot: ACTION: DRY RUN: would place ask price_rxd_per_ltc=2437096 amount="135000 RXD" reason="replacement quote"
+INFO    kdf.dry_run: DRY RUN: would place maker order side=ask base=RXD rel=LTC price=0.000000410324410375 volume=135000 price_rxd_per_ltc=2437096.05
+INFO    state: STATE REPRICING -> ACTIVE reason="orders updated"
+INFO    bot: RXD/LTC fair=2.457M bid=2.486M ask=2.437M RXD=300000 LTC=0.1000 orders=0b/1a state=ACTIVE DRY-RUN
+INFO    state: STATE ACTIVE -> SHUTTING_DOWN reason="stop requested"
+INFO    kdf.dry_run: DRY RUN: would cancel all pair orders uuids=['11111111-aaaa-bbbb-cccc-111111111111']
+INFO    bot: DRY RUN: would cancel orders on exit uuids=['11111111-aaaa-bbbb-cccc-111111111111']
+INFO    bot: bot stopped

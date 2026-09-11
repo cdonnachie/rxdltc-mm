@@ -1,0 +1,13 @@
+# Files the `tauri dev` watcher must ignore (gitignore syntax). Anything written here
+# at runtime would otherwise trigger a rebuild + app restart, killing the bot and KDF.
+config.yaml
+config.yaml.bak
+MM2.json
+MM2.json.bak
+*.bak
+*.log
+*.sqlite3*
+binaries/
+kdf/
+data/
+DB/

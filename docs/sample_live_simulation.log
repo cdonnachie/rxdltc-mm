@@ -1,0 +1,59 @@
+WARNING cli: SIMULATION MODE: fake KDF and fake price providers; nothing touches a real node
+INFO    metrics: metrics server listening bind=127.0.0.1 port=9109
+INFO    bot: bot starting dry_run=False pair=RXD/LTC poll=30
+INFO    bot: reference price fair_rxd_per_ltc=2779255.32 sources=3 disagreement_pct=1.375 prices="{'sim_gecko': '2799571', 'sim_paprika': '2761352', 'sim_gleec_cex': '2779255'}" synthetic=['sim_gleec_cex'] rejected={}
+INFO    bot: connected to KDF version="fake-kdf 0.0"
+INFO    bot: reconcile: adopting existing order side=bid uuid=fake-1 known=False price_rxd_per_ltc=2740000 remaining=0.045
+INFO    bot: reconcile: adopting existing order side=ask uuid=fake-2 known=False price_rxd_per_ltc=2752000 remaining=135000
+INFO    state: STATE STARTING -> ACTIVE reason="reference price and KDF state available"
+INFO    bot: targets fair=2779255 bid_rxd_per_ltc=2809192 ask_rxd_per_ltc=2753565 bid_ltc_per_rxd=0.000000355974 ask_ltc_per_rxd=0.000000363166 inventory_rxd_pct=51.9 skew_pct=0.076 clamped=False bid_size_ltc=0.045 ask_size_rxd=135000 quote_bid=True quote_ask=True notes=[]
+INFO    bot: existing order side=bid uuid=fake-1 price_rxd_per_ltc=2740000 remaining=0.045 of=0.045 unit=LTC age_s=600 matches=0
+INFO    bot: existing order side=ask uuid=fake-2 price_rxd_per_ltc=2752000 remaining=135000 of=135000 unit=RXD age_s=600 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=1 best_foreign_ask_rxd_per_ltc=2700000 best_foreign_bid_rxd_per_ltc=2900000
+INFO    bot: ACTION: keep ask uuid=fake-2 reason="within thresholds (price dev 0.057%, size dev 0.0%)"
+INFO    state: STATE ACTIVE -> REPRICING reason="orders need changes"
+INFO    bot: ACTION: will cancel bid uuid=fake-1 reason="existing quote 2740000 is outside the safety envelope"
+INFO    bot: ACTION: will place bid price_rxd_per_ltc=2809192 amount="0.045 LTC" reason="replacement quote"
+INFO    bot: order placed side=bid uuid=fake-3
+INFO    state: STATE REPRICING -> ACTIVE reason="orders updated"
+INFO    bot: RXD/LTC fair=2.779M bid=2.809M ask=2.754M RXD=300000 LTC=0.1000 orders=1b/1a state=ACTIVE
+INFO    bot: reference price fair_rxd_per_ltc=2779255.32 sources=3 disagreement_pct=1.375 prices="{'sim_gecko': '2799571', 'sim_paprika': '2761352', 'sim_gleec_cex': '2779255'}" synthetic=['sim_gleec_cex'] rejected={}
+INFO    bot: targets fair=2779255 bid_rxd_per_ltc=2809192 ask_rxd_per_ltc=2753565 bid_ltc_per_rxd=0.000000355974 ask_ltc_per_rxd=0.000000363166 inventory_rxd_pct=51.9 skew_pct=0.076 clamped=False bid_size_ltc=0.045 ask_size_rxd=135000 quote_bid=True quote_ask=True notes=[]
+INFO    bot: existing order side=ask uuid=fake-2 price_rxd_per_ltc=2752000 remaining=135000 of=135000 unit=RXD age_s=630 matches=0
+INFO    bot: existing order side=bid uuid=fake-3 price_rxd_per_ltc=2809192 remaining=0.045 of=0.045 unit=LTC age_s=30 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=1 best_foreign_ask_rxd_per_ltc=2700000 best_foreign_bid_rxd_per_ltc=2900000
+INFO    bot: ACTION: keep bid uuid=fake-3 reason="within thresholds (price dev 0.000%, size dev 0.0%)"
+INFO    bot: ACTION: keep ask uuid=fake-2 reason="within thresholds (price dev 0.057%, size dev 0.0%)"
+INFO    bot: RXD/LTC fair=2.779M bid=2.809M ask=2.754M RXD=300000 LTC=0.1000 orders=1b/1a state=ACTIVE
+INFO    bot: reference price fair_rxd_per_ltc=2779255.32 sources=3 disagreement_pct=1.375 prices="{'sim_gecko': '2799571', 'sim_paprika': '2761352', 'sim_gleec_cex': '2779255'}" synthetic=['sim_gleec_cex'] rejected={}
+INFO    bot: targets fair=2779255 bid_rxd_per_ltc=2809192 ask_rxd_per_ltc=2753565 bid_ltc_per_rxd=0.000000355974 ask_ltc_per_rxd=0.000000363166 inventory_rxd_pct=51.9 skew_pct=0.076 clamped=False bid_size_ltc=0.045 ask_size_rxd=135000 quote_bid=True quote_ask=True notes=[]
+INFO    bot: existing order side=ask uuid=fake-2 price_rxd_per_ltc=2752000 remaining=135000 of=135000 unit=RXD age_s=660 matches=0
+INFO    bot: existing order side=bid uuid=fake-3 price_rxd_per_ltc=2809192 remaining=0.045 of=0.045 unit=LTC age_s=60 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=1 best_foreign_ask_rxd_per_ltc=2700000 best_foreign_bid_rxd_per_ltc=2900000
+INFO    bot: ACTION: keep bid uuid=fake-3 reason="within thresholds (price dev 0.000%, size dev 0.0%)"
+INFO    bot: ACTION: keep ask uuid=fake-2 reason="within thresholds (price dev 0.057%, size dev 0.0%)"
+INFO    bot: RXD/LTC fair=2.779M bid=2.809M ask=2.754M RXD=300000 LTC=0.1000 orders=1b/1a state=ACTIVE
+INFO    bot: reference price fair_rxd_per_ltc=2779255.32 sources=3 disagreement_pct=1.375 prices="{'sim_gecko': '2799571', 'sim_paprika': '2761352', 'sim_gleec_cex': '2779255'}" synthetic=['sim_gleec_cex'] rejected={}
+INFO    bot: balance change rxd_before=300000 rxd_after=232500 ltc_before=0.1 ltc_after=0.12452762
+INFO    bot: targets fair=2779255 bid_rxd_per_ltc=2796026 ask_rxd_per_ltc=2740659 bid_ltc_per_rxd=0.00000035765 ask_ltc_per_rxd=0.000000364876 inventory_rxd_pct=40.2 skew_pct=-0.393 clamped=False bid_size_ltc=0.05603742 ask_size_rxd=104625 quote_bid=True quote_ask=True notes=[]
+INFO    bot: existing order side=ask uuid=fake-2 price_rxd_per_ltc=2752000 remaining=67500 of=135000 unit=RXD age_s=690 matches=0
+INFO    bot: existing order side=bid uuid=fake-3 price_rxd_per_ltc=2809192 remaining=0.045 of=0.045 unit=LTC age_s=90 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=1 best_foreign_ask_rxd_per_ltc=2700000 best_foreign_bid_rxd_per_ltc=2900000
+INFO    bot: ACTION: keep bid uuid=fake-3 reason="within thresholds (price dev 0.471%, size dev 19.7%)"
+INFO    state: STATE ACTIVE -> REPRICING reason="orders need changes"
+INFO    bot: ACTION: will cancel ask uuid=fake-2 reason="replace: size dev 35.5% > 25.0%"
+INFO    bot: ACTION: will place ask price_rxd_per_ltc=2740659 amount="104625 RXD" reason="replacement quote"
+INFO    bot: order placed side=ask uuid=fake-5
+INFO    state: STATE REPRICING -> ACTIVE reason="orders updated"
+INFO    bot: RXD/LTC fair=2.779M bid=2.796M ask=2.741M RXD=232500 LTC=0.1245 orders=1b/1a state=ACTIVE
+INFO    bot: reference price fair_rxd_per_ltc=2779255.32 sources=3 disagreement_pct=1.375 prices="{'sim_gecko': '2799571', 'sim_paprika': '2761352', 'sim_gleec_cex': '2779255'}" synthetic=['sim_gleec_cex'] rejected={}
+INFO    bot: targets fair=2779255 bid_rxd_per_ltc=2796026 ask_rxd_per_ltc=2740659 bid_ltc_per_rxd=0.00000035765 ask_ltc_per_rxd=0.000000364876 inventory_rxd_pct=40.2 skew_pct=-0.393 clamped=False bid_size_ltc=0.05603742 ask_size_rxd=104625 quote_bid=True quote_ask=True notes=[]
+INFO    bot: existing order side=bid uuid=fake-3 price_rxd_per_ltc=2809192 remaining=0.045 of=0.045 unit=LTC age_s=120 matches=0
+INFO    bot: existing order side=ask uuid=fake-5 price_rxd_per_ltc=2740659 remaining=104625 of=104625 unit=RXD age_s=30 matches=0
+INFO    bot: orderbook foreign_asks=1 foreign_bids=1 best_foreign_ask_rxd_per_ltc=2700000 best_foreign_bid_rxd_per_ltc=2900000
+INFO    bot: ACTION: keep bid uuid=fake-3 reason="within thresholds (price dev 0.471%, size dev 19.7%)"
+INFO    bot: ACTION: keep ask uuid=fake-5 reason="within thresholds (price dev 0.000%, size dev 0.0%)"
+INFO    bot: RXD/LTC fair=2.779M bid=2.796M ask=2.741M RXD=232500 LTC=0.1245 orders=1b/1a state=ACTIVE
+INFO    state: STATE ACTIVE -> SHUTTING_DOWN reason="stop requested"
+INFO    bot: cancelled orders on exit uuids="['fake-3', 'fake-5']"
+INFO    bot: bot stopped

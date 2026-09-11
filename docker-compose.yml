@@ -1,0 +1,45 @@
+# docker compose up -d
+#
+# Two services on a private network: the Komodo DeFi Framework node (kdf) and the
+# bot. The KDF RPC port is NOT published to the host; only the bot reaches it.
+# Put secrets in ./.env (see .env.example) -- compose passes them as environment.
+
+services:
+  kdf:
+    # GLEEC's fork does not publish a container image; build it from source
+    # (https://github.com/GLEECBTC/komodo-defi-framework, docs/DEV_ENVIRONMENT.md)
+    # or use the upstream image and confirm it is compatible with GLEEC DEX.
+    image: komodoofficial/komodo-defi-framework:main-latest
+    restart: unless-stopped
+    volumes:
+      - ./kdf:/kdf                       # MM2.json and coins live here (see deploy/MM2.json.example)
+      - kdf-db:/kdf/DB
+    working_dir: /kdf
+    environment:
+      MM_CONF_PATH: /kdf/MM2.json
+      MM_COINS_PATH: /kdf/coins
+      MM_LOG: /kdf/mm2.log
+    # rpcip in MM2.json must be 0.0.0.0 for the bot container to reach it; the
+    # port stays private to this compose network because it is not published.
+    expose:
+      - "7783"
+    stop_grace_period: 30s
+
+  bot:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - kdf
+    env_file: .env
+    environment:
+      KDF_RPC_URL: http://kdf:7783
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - bot-data:/data
+    ports:
+      - "127.0.0.1:9109:9109"           # /status and /metrics, localhost only
+    stop_grace_period: 45s              # SIGTERM -> cancel orders -> persist -> exit
+
+volumes:
+  kdf-db:
+  bot-data:

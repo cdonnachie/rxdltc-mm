@@ -1,0 +1,194 @@
+# RXD/LTC liquidity bot configuration.
+# Copy to config.yaml and edit. Secrets (RPC password, API keys) come from
+# environment variables / .env only -- never put them in this file.
+#
+# PRICE CONVENTION (read this first)
+# ----------------------------------
+# Every price in this file, in the logs and in the metrics is expressed as
+#
+#     RXD per LTC   (how many RXD one LTC buys), e.g. 2800000
+#
+# In that unit a LARGER number means RXD is CHEAPER.  Therefore:
+#   * the RXD BID (the bot BUYS RXD, paying LTC) is quoted ABOVE fair value
+#     (the bot wants more RXD per LTC than fair), and
+#   * the RXD ASK (the bot SELLS RXD, receiving LTC) is quoted BELOW fair value
+#     (the bot gives fewer RXD per LTC than fair).
+# Example with fair = 2,800,000 and 1% offsets:
+#   RXD bid  = 2,828,000 RXD/LTC  (== 3.536e-7 LTC/RXD, 1% below fair in LTC/RXD)
+#   RXD ask  = 2,772,000 RXD/LTC  (== 3.608e-7 LTC/RXD, 1% above fair in LTC/RXD)
+# The bot converts to KDF's native "rel per base" price internally and has
+# unit tests that lock the direction down. See README "Price convention".
+
+pair:
+  base: RXD
+  # KDF ticker of the LTC wallet to trade with. The GLEEC coins file defines two:
+  #   LTC         legacy address (L...),   derivation m/44'/2'
+  #   LTC-segwit  bech32 address (ltc1...), derivation m/84'/2'  <- what the GLEEC web wallet uses
+  # Both place orders in the same RXD/LTC order book (orderbook_ticker: LTC); only the address
+  # holding your funds differs. Pick the one whose address you funded.
+  quote: LTC-segwit
+  canonical_price_unit: RXD_PER_LTC   # the only supported value
+
+poll_interval_seconds: 30
+reprice_threshold_pct: 0.5            # replace an order when its price drifts > 0.5% from target
+resize_threshold_pct: 25.0            # replace an order when its remaining size drifts > 25% from target
+minimum_order_lifetime_seconds: 60    # never cancel an order younger than this (unless unsafe)
+
+pricing:
+  bid_offset_pct: 1.0                 # bot buys RXD this far from fair (see convention above)
+  ask_offset_pct: 1.0                 # bot sells RXD this far from fair
+  min_edge_pct: 0.10                  # quotes are never allowed closer than this to fair value
+  min_valid_providers: 2
+  reference_stale_seconds: 90         # a quote FETCHED longer ago than this is ignored
+  max_source_age_seconds: 600         # a quote whose SOURCE-REPORTED update time is older than this is ignored
+                                      # (CoinGecko/CoinPaprika free tiers report updates 1-4 minutes old; 90s would reject them)
+  max_provider_disagreement_pct: 5.0  # after outlier rejection, spread between sources must be below this
+  outlier_rejection_pct: 5.0          # with >= 3 sources, drop any source further than this from the median
+  allow_synthetic_quotes: true        # let single-leg providers (Gleec CEX has LTC but not RXD) be combined
+                                      # with the median of the other leg. Such quotes are logged as synthetic.
+  providers:
+    # Every provider accepts `min_interval_seconds`: the source is not called more often than
+    # that and the last good quote is reused in between (it still expires per reference_stale_seconds).
+    # HTTP 429 (rate limit) triggers an automatic back-off with the last quote reused meanwhile.
+    - name: coingecko
+      type: coingecko
+      enabled: true
+      timeout_seconds: 10
+      # CoinGecko's public API is rate limited per IP; a free demo key (COINGECKO_API_KEY) raises the limit.
+      min_interval_seconds: 60
+      # ids from https://api.coingecko.com/api/v3/coins/list
+      rxd_id: radiant
+      ltc_id: litecoin
+    - name: coinpaprika
+      type: coinpaprika
+      enabled: true
+      timeout_seconds: 10
+      min_interval_seconds: 60
+      rxd_id: rxd-radiant
+      ltc_id: ltc-litecoin
+    - name: gleec_cex
+      type: gleec_cex
+      enabled: true
+      timeout_seconds: 10
+      # Gleec CEX (HitBTC v3 compatible API) lists LTC but not RXD (checked 2026-09).
+      # This provider therefore only supplies the LTC leg (LTCUSDT). Symbols are
+      # configurable in case RXD gets listed.
+      ltc_symbol: LTCUSDT
+      rxd_symbol: null
+    # Direct exchange quote. As of 2026-09 CoinGecko lists only two RXD markets and the larger
+    # one (MEXC) is flagged stale, so the aggregators partly track a dead ticker. NonKYC is the
+    # live RXD market; it also has LTC/USDT, so this is a complete, independent RXD/LTC quote.
+    # Bid/ask mid is used instead of "last" because RXD trades rarely.
+    - name: nonkyc
+      type: generic_http
+      enabled: true
+      timeout_seconds: 10
+      min_interval_seconds: 30
+      rxd_url: "https://api.nonkyc.io/api/v2/ticker/RXD_USDT"
+      ltc_url: "https://api.nonkyc.io/api/v2/ticker/LTC_USDT"
+      rxd_price_path: ["bid", "ask"]
+      ltc_price_path: ["bid", "ask"]
+      rxd_timestamp_path: null
+      ltc_timestamp_path: null
+      quote_currency: USD
+    - name: mm2_price_service
+      type: generic_http
+      enabled: false
+      timeout_seconds: 10
+      # Any JSON endpoint. Paths use dotted keys. Default paths below match the
+      # mm2-client / cipig price service format:
+      #   {"RXD": {"last_price": "0.0000208", "last_updated_timestamp": 1789123520}, "LTC": {...}}
+      url: "http://prices.cipig.net:1313/api/v2/tickers?expire_at=600"
+      rxd_price_path: "RXD.last_price"
+      ltc_price_path: "LTC.last_price"
+      rxd_timestamp_path: "RXD.last_updated_timestamp"
+      ltc_timestamp_path: "LTC.last_updated_timestamp"
+      quote_currency: USD
+
+inventory:
+  target_rxd_value_pct: 50            # ideal share of total value (valued at fair) held as RXD
+  max_rxd_value_pct: 75               # above this: stop buying RXD (no bid)
+  min_rxd_value_pct: 25               # below this: stop selling RXD (no ask)
+
+inventory_skew:
+  enabled: true
+  max_adjustment_pct: 1.0             # maximum shift of the quote midpoint, reached at the min/max bounds
+
+order_sizing:
+  mode: balance_percent               # balance_percent | fixed
+  rxd_balance_percent: 50             # ask size = 50% of (RXD balance - reserve)
+  ltc_balance_percent: 50             # bid size = 50% of (LTC balance - reserve)
+  rxd_order_amount: 100000            # used when mode == fixed (RXD)
+  ltc_order_amount: 0.05              # used when mode == fixed (LTC)
+  min_rxd_order_amount: 1000          # do not place asks smaller than this
+  min_ltc_order_amount: 0.001         # do not place bids smaller than this
+  min_volume_fraction: 0.25           # KDF min_volume: takers must fill at least this fraction of the order
+
+reserve:
+  rxd_percent: 10                     # never committed to orders (fees, dust, settlement)
+  ltc_percent: 10
+
+safety:
+  max_price_move_pct: 5.0
+  max_price_move_window_seconds: 300
+  max_quote_deviation_pct: 3.0        # any quote further than this from fair -> pause
+  rpc_failure_limit: 3                # consecutive RPC failures before RPC_ERROR
+  order_error_limit: 3                # consecutive order place/cancel errors before PAUSED
+  cooldown_seconds: 300               # minimum time in PAUSED
+  recovery_seconds: 120               # conditions must be healthy this long before resuming
+  max_swap_age_check_seconds: 86400   # how far back to look for swaps at startup
+
+trading:
+  maker_only: true                    # the bot only ever uses `setprice` (post-only by construction)
+  prevent_crossing_book: true         # never quote through the best foreign quote
+  on_cross: skip                      # skip | adjust  (adjust = move quote just inside the best foreign quote)
+  base_confs: 2                       # confirmations required for RXD payments (KDF setprice base_confs/rel_confs)
+  base_nota: false
+  rel_confs: 2
+  rel_nota: false
+  order_timeout_minutes: null         # optional KDF-side auto-cancel (setprice timeout_in_minutes)
+
+reconcile:
+  adopt_existing_orders: true         # on startup, adopt one existing order per side as ours
+  cancel_unknown_orders: false        # if false, extra/unknown orders for the pair pause the bot (ambiguous)
+
+shutdown:
+  cancel_orders_on_exit: true
+
+kdf:
+  # RPC URL and password come from KDF_RPC_URL / KDF_RPC_PASSWORD env vars.
+  request_timeout_seconds: 20
+  activate_coins_on_start: true
+  coins:
+    RXD:
+      # Electrum servers from https://github.com/GLEECBTC/coins/blob/master/electrums/RXD
+      electrum:
+        - { url: "electrumx.radiant4people.com:50012", protocol: SSL }
+        - { url: "electrumx2.radiant4people.com:50012", protocol: SSL }
+        - { url: "electrumx.rxd-radiant.com:50022", protocol: SSL }
+    LTC-segwit:
+      # Key must equal pair.quote. Do NOT add `address_format: segwit` to a plain `LTC` entry: this
+      # KDF fork rejects a segwit request for a coin whose coins-file entry is not segwit
+      # ("Both conf Standard and request Segwit must be either Segwit or Standard").
+      electrum:
+        - { url: "ltc.electrum1.cipig.net:20063", protocol: SSL }
+        - { url: "ltc.electrum2.cipig.net:20063", protocol: SSL }
+        - { url: "ltc.electrum3.cipig.net:20063", protocol: SSL }
+
+persistence:
+  sqlite_path: data/mm-bot.sqlite3
+
+metrics:
+  enabled: true
+  bind: 127.0.0.1
+  port: 9109
+
+logging:
+  level: INFO
+  format: text                        # text | json
+  status_line_every_cycles: 1
+
+# DRY RUN: the bot connects, reads balances/orderbook/orders, computes quotes and
+# logs what it WOULD do. It never places or cancels anything.
+# Live trading additionally requires MM_BOT_CONFIRM_LIVE=I_UNDERSTAND_THIS_TRADES_REAL_FUNDS.
+dry_run: true

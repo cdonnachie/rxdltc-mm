@@ -1,0 +1,54 @@
+# /etc/systemd/system/rxdltc-mm.service
+#
+#   sudo useradd --system --home /opt/rxdltc-mm --shell /usr/sbin/nologin mmbot
+#   sudo mkdir -p /opt/rxdltc-mm /etc/rxdltc-mm /var/lib/rxdltc-mm
+#   sudo git clone <repo> /opt/rxdltc-mm && cd /opt/rxdltc-mm
+#   sudo python3.12 -m venv .venv && sudo .venv/bin/pip install .
+#   sudo cp config.example.yaml /etc/rxdltc-mm/config.yaml   # edit
+#   sudo cp .env.example /etc/rxdltc-mm/env                  # edit, then:
+#   sudo chown -R mmbot:mmbot /var/lib/rxdltc-mm /etc/rxdltc-mm
+#   sudo chmod 600 /etc/rxdltc-mm/env
+#   sudo systemctl daemon-reload && sudo systemctl enable --now rxdltc-mm
+#   journalctl -u rxdltc-mm -f
+
+[Unit]
+Description=RXD/LTC liquidity bot for GLEEC DEX (Komodo DeFi Framework)
+After=network-online.target
+Wants=network-online.target
+# If KDF runs as a unit on the same host, start after it:
+# After=kdf.service
+# Requires=kdf.service
+
+[Service]
+Type=simple
+User=mmbot
+Group=mmbot
+WorkingDirectory=/opt/rxdltc-mm
+EnvironmentFile=/etc/rxdltc-mm/env
+Environment=MM_BOT_DATA_DIR=/var/lib/rxdltc-mm
+ExecStart=/opt/rxdltc-mm/.venv/bin/rxdltc-mm --config /etc/rxdltc-mm/config.yaml --env-file /dev/null
+
+# SIGTERM: the bot stops quoting, cancels open orders (shutdown.cancel_orders_on_exit),
+# persists state and exits. Give it time to talk to KDF.
+KillSignal=SIGTERM
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=15s
+# On restart the bot reconciles the orders that are still open on KDF instead of duplicating them.
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/rxdltc-mm
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
