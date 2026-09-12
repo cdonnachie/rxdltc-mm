@@ -2880,7 +2880,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rxdltc-mm-ui"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hex",
  "keyring",
