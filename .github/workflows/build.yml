@@ -116,7 +116,7 @@ jobs:
           # runs they are only uploaded as workflow artifacts (see below).
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('RXD/LTC Liquidity Bot {0}', github.ref_name) || '' }}
-          releaseBody: "Windows builds are unsigned, so SmartScreen warns on first launch. macOS builds are signed and notarised when the signing secrets are configured."
+          releaseBody: "macOS builds are signed with an Apple Developer ID and notarised. Windows installers are code signed separately shortly after the release is published; until then they show an unknown publisher."
           releaseDraft: true
           prerelease: true
 
