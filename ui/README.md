@@ -77,6 +77,34 @@ Bump these in `src-tauri/src/setup.rs` when releasing a new app version.
 "Check for KDF updates" on the KDF tab only reports a newer tag; it never
 installs it.
 
+## Code signing
+
+CI produces unsigned bundles unless signing secrets are present, so the
+workflow is safe to run with none, some, or all of them configured.
+
+**macOS** (fully automated once the secrets exist). Add these repository
+secrets; the two macOS jobs pick them up and Tauri signs and notarises:
+
+| secret | contents |
+|--------|----------|
+| `APPLE_CERTIFICATE` | the **Developer ID Application** certificate exported from Keychain Access as `.p12`, base64 encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `APPLE_CERTIFICATE_PASSWORD` | the password used for that export |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Your Name (TEAMID)`, from `security find-identity -v -p codesigning` |
+| `APPLE_API_ISSUER` | App Store Connect issuer UUID |
+| `APPLE_API_KEY` | App Store Connect key ID, e.g. `ABC123DEFG` |
+| `APPLE_API_KEY_CONTENT` | the contents of the downloaded `AuthKey_*.p8`; the workflow writes it to disk and sets `APPLE_API_KEY_PATH` |
+
+Signing only engages when `APPLE_CERTIFICATE` is set, so an identity on its own
+cannot break the build. Notarisation is skipped if `APPLE_API_KEY_CONTENT` is
+absent, leaving a signed but un-notarised bundle.
+
+**Windows** is not wired up. The certificate must live on certified hardware,
+so a cloud HSM such as Certum SimplySign needs either a headless PKCS#11 path
+driven through Tauri's `bundle.windows.signCommand`, a self-hosted runner with
+the signing client logged in, or a manual signing pass over the released
+`.exe` and `.msi`. The PyInstaller sidecar (`rxdltc-mm.exe`) is worth signing
+too, since one-file Python builds often trip antivirus heuristics.
+
 ## Run in development
 
 ```powershell
