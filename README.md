@@ -154,8 +154,9 @@ the cipig.net servers are pre-filled). The GLEEC coins file defines two LTC
 tickers from the same seed: `LTC` (legacy `L...` address) and `LTC-segwit`
 (bech32 `ltc1...` address, what the GLEEC web wallet shows as "LTC SEGWIT").
 Both trade in the same RXD/LTC order book. Set `pair.quote` to the one whose
-address holds your funds (the example uses `LTC-segwit`) and name the
-`kdf.coins` entry identically. Fund that LTC address. Keep in mind
+address holds your funds (the example uses `LTC-segwit`). The `kdf.coins`
+entry may be keyed as either `LTC` or `LTC-segwit`; both tickers use the same
+Electrum servers, so the bot uses whichever entry exists. Fund that LTC address. Keep in mind
 that every swap costs an LTC transaction fee and that KDF locks amounts during
 in-flight swaps; the `reserve` settings keep 10% of each balance untouched by
 default.
@@ -362,8 +363,10 @@ involving a coin and prints one line per pair with counts, volumes and the
 best prices in the bot's unit:
 
 ```powershell
-.\.venv\Scripts\python scriptsxd_markets.py            # RXD against everything
-.\.venv\Scripts\python scriptsxd_markets.py --coin LTC
+.\.venv\Scripts\python scripts
+xd_markets.py            # RXD against everything
+.\.venv\Scripts\python scripts
+xd_markets.py --coin LTC
 ```
 
 It needs a running KDF node (`KDF_RPC_URL` / `KDF_RPC_PASSWORD` from `.env`).

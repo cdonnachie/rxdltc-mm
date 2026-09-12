@@ -305,12 +305,25 @@ class LiquidityBot:
                 continue
             if not self.cfg.kdf.activate_coins_on_start:
                 raise UnsafeCondition(f"coin {ticker} is not enabled in KDF and activate_coins_on_start is false")
-            servers = self.cfg.kdf.coins.get(ticker)
+            servers = self._coin_activation(ticker)
             if servers is None or not servers.electrum:
                 raise UnsafeCondition(f"coin {ticker} is not enabled and no electrum servers are configured")
             log.info("activating coin", coin=ticker, servers=[s.url for s in servers.electrum], address_format=servers.address_format)
             bal = self.kdf.activate_coin(ticker, servers.electrum, servers.address_format)
             log.info("coin activated", coin=ticker, address=bal.address, balance=str(bal.spendable))
+
+    def _coin_activation(self, ticker: str) -> CoinActivation | None:
+        """Electrum servers for ``ticker``. ``LTC`` and ``LTC-segwit`` are the same chain and use
+        the same servers, so either entry serves the other; this lets the quote ticker be switched
+        in the UI without editing the coins block."""
+        coins = self.cfg.kdf.coins
+        for key in (ticker, ticker.removesuffix("-segwit"), f"{ticker}-segwit"):
+            entry = coins.get(key)
+            if entry is not None and entry.electrum:
+                if key != ticker:
+                    log.info("using electrum servers of sibling entry", coin=ticker, from_entry=key)
+                return entry
+        return None
 
     @staticmethod
     def _address_format_matches(bal: Balance, wanted: str) -> bool:
@@ -324,7 +337,7 @@ class LiquidityBot:
         so KDF is looking at a different address of the same seed. Re-activate it with the
         configured format, but only when nothing is open on the pair: ``disable_coin`` cancels
         the coin's open orders and refuses while swaps are in progress."""
-        servers = self.cfg.kdf.coins.get(ticker)
+        servers = self._coin_activation(ticker)
         if servers is None or not servers.electrum:
             raise UnsafeCondition(f"coin {ticker} is enabled with a different address format than configured and no "
                                   f"electrum servers are configured to re-activate it")

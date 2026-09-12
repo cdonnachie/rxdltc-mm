@@ -89,3 +89,18 @@ def test_activation_and_disable_requests():
     assert "address_format" not in rpc.calls[1][1]
     assert client.disable_coin("LTC") == ["u-1"]
     assert rpc.calls[2] == ("disable_coin", {"coin": "LTC"})
+
+
+def test_legacy_ltc_ticker_uses_segwit_entry_servers(clock):
+    """Switching pair.quote to LTC in the UI must work with only an LTC-segwit coins entry."""
+    kdf = FakeKdf(clock=clock)
+    kdf.balances["LTC"] = Decimal("0.1")
+    coins = {"kdf": {"coins": {
+        "RXD": {"electrum": [{"url": "rxd.example:50012", "protocol": "SSL"}]},
+        "LTC-segwit": {"electrum": [{"url": "ltc.example:20063", "protocol": "SSL"}]},  # no plain LTC entry
+    }}}
+    cfg = make_config(pair={"quote": "LTC"}, **coins)
+    bot = LiquidityBot(cfg, kdf, providers_at(clock=clock), Store(":memory:"), dry_run=False, clock=clock)
+    bot.cycle()
+    assert "LTC" in kdf.enabled and kdf.address_formats["LTC"] == "standard"  # legacy address, sibling's servers
+    assert bot.sm.state is BotState.ACTIVE
