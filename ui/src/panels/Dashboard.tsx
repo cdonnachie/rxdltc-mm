@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { api, type BotStatus, copyText, fmtDuration, fmtM, fmtNum, fmtTime, ltcPerRxd, rebalanceHint } from "../api";
+import { api, type BotStatus, copyText, fmtDuration, fmtM, fmtNum, fmtTime, fmtUsd, ltcPerRxd, rebalanceHint } from "../api";
 
-function Address({ label, value }: { label: string; value: string | null | undefined }) {
+function Address({ label, value, holding }: { label: string; value: string | null | undefined; holding?: string }) {
   const [copied, setCopied] = useState(false);
   if (!value) return <div className="row small muted">{label}: not available</div>;
   return (
@@ -11,6 +11,7 @@ function Address({ label, value }: { label: string; value: string | null | undef
       <button className="small" style={{ padding: "2px 8px" }} onClick={async () => { await copyText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
         {copied ? "copied" : "copy"}
       </button>
+      {holding && <span className="small muted">{holding}</span>}
     </div>
   );
 }
@@ -18,11 +19,14 @@ function Address({ label, value }: { label: string; value: string | null | undef
 function RebalanceCard({ status }: { status: BotStatus }) {
   const base = status.base ?? "RXD", quote = status.quote ?? "LTC";
   const hint = rebalanceHint(status);
+  const total = status.balance_rxd_usd && status.balance_ltc_usd ? Number(status.balance_rxd_usd) + Number(status.balance_ltc_usd) : null;
   return (
     <div className="card">
-      <h2>Wallet addresses (dedicated liquidity wallet)</h2>
-      <Address label={base} value={status.address_rxd} />
-      <Address label={quote} value={status.address_ltc} />
+      <h2>Wallet addresses (dedicated liquidity wallet){total !== null && <span className="muted"> · total {fmtUsd(total)}</span>}</h2>
+      <Address label={base} value={status.address_rxd}
+               holding={status.balance_rxd_usd ? `${fmtNum(status.balance_rxd, 2)} ${base} ≈ ${fmtUsd(status.balance_rxd_usd)} @ ${fmtUsd(status.rxd_usd, 8)}` : undefined} />
+      <Address label={quote} value={status.address_ltc}
+               holding={status.balance_ltc_usd ? `${fmtNum(status.balance_ltc, 8)} ${quote} ≈ ${fmtUsd(status.balance_ltc_usd)} @ ${fmtUsd(status.ltc_usd)}` : undefined} />
       <h2 style={{ marginTop: 14 }}>Rebalance</h2>
       {hint ? (
         <p className="small" style={{ margin: 0 }}>
@@ -98,6 +102,9 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           <h2>Inventory</h2>
           <span className="value">{fmtNum(status.inventory_rxd_value_pct, 1)}% {base}</span>
           <span className="sub">{fmtNum(status.balance_rxd, 2)} {base} · {fmtNum(status.balance_ltc, 8)} {quote}</span>
+          {status.balance_rxd_usd && status.balance_ltc_usd && (
+            <span className="sub">{fmtUsd(status.balance_rxd_usd)} + {fmtUsd(status.balance_ltc_usd)} = {fmtUsd(Number(status.balance_rxd_usd) + Number(status.balance_ltc_usd))}</span>
+          )}
           <span className="sub">skew {fmtNum(status.targets_detail?.skew_pct, 3)}%{status.targets_detail?.clamped ? " · clamped" : ""}</span>
         </div>
       </div>

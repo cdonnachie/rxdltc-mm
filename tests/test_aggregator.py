@@ -30,6 +30,16 @@ def test_median_of_valid_sources():
     assert out.reference.disagreement_pct == Decimal(2)
 
 
+def test_usd_legs_are_medians_of_used_sources():
+    out = aggregate([_res("a", "0.00002", "56"), _res("b", "0.000021", "56.56"), _res("c", "0.000019", "55.44")], CFG, NOW)
+    assert out.ok
+    assert out.reference.rxd_usd == Decimal("0.00002")
+    assert out.reference.ltc_usd == Decimal("56")
+    # a single-leg (synthetic) provider contributes only the leg it has
+    out = aggregate([_res("a", "0.00002", "56"), _res("b", "0.00002", "56"), _res("g", None, "60")], CFG, NOW)
+    assert out.ok and out.reference.ltc_usd == Decimal("56") and out.reference.rxd_usd == Decimal("0.00002")
+
+
 def test_stale_source_leg_is_rejected_and_min_providers_enforced():
     out = aggregate([_res("a", "0.00002", "56"), _res("b", "0.00002", "56", ts=NOW - 700)], CFG, NOW)
     assert not out.ok

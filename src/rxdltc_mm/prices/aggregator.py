@@ -142,6 +142,11 @@ def aggregate(results: list[ProviderResult], cfg: PricingConfig, now: float) -> 
             None, f"providers disagree by {disagreement:.2f}% > {cfg.max_provider_disagreement_pct}%", rejected, candidates
         )
 
+    def usd_leg(coin: str) -> Decimal | None:
+        vals = [valid_legs[s][coin].price for s in used if coin in valid_legs.get(s, {})
+                and valid_legs[s][coin].quote_currency.upper() in ("USD", "USDT", "USDC")]
+        return _median(vals) if vals else None
+
     ref = ReferencePrice(
         fair_rxd_per_ltc=fair,
         number_of_sources=len(used),
@@ -151,5 +156,7 @@ def aggregate(results: list[ProviderResult], cfg: PricingConfig, now: float) -> 
         oldest_leg_age_seconds=max((ages[s] for s in used), default=0.0),
         synthetic_sources=tuple(s for s in synthetic if s in used),
         rejected=rejected,
+        rxd_usd=usd_leg("RXD"),
+        ltc_usd=usd_leg("LTC"),
     )
     return AggregationResult(ref, "ok", rejected, candidates)

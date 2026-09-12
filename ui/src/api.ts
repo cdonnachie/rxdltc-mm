@@ -57,6 +57,10 @@ export interface BotStatus {
   balance_ltc?: string | null;
   address_rxd?: string | null;
   address_ltc?: string | null;
+  rxd_usd?: string | null;
+  ltc_usd?: string | null;
+  balance_rxd_usd?: string | null;
+  balance_ltc_usd?: string | null;
   inventory_target_pct?: string;
   inventory_min_pct?: string;
   inventory_max_pct?: string;
@@ -176,6 +180,13 @@ export function fmtNum(v: string | number | null | undefined, digits = 4): strin
   const n = Number(v);
   if (!Number.isFinite(n)) return String(v);
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+export function fmtUsd(v: string | number | null | undefined, digits = 2): string {
+  if (v === null || v === undefined || v === "") return "–";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "–";
+  return "$" + n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function ltcPerRxd(v: string | null | undefined): string {
