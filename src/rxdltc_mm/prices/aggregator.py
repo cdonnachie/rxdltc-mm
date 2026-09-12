@@ -38,6 +38,8 @@ class ReferencePrice:
     oldest_leg_age_seconds: float
     synthetic_sources: tuple[str, ...] = ()
     rejected: dict[str, str] = field(default_factory=dict)  # source -> reason
+    rxd_usd: Decimal | None = None  # median USD price of one RXD over the used sources (informational)
+    ltc_usd: Decimal | None = None  # median USD price of one LTC over the used sources (informational)
 
 
 @dataclass(frozen=True)

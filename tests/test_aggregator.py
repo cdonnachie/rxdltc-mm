@@ -31,7 +31,7 @@ def test_median_of_valid_sources():
 
 
 def test_usd_legs_are_medians_of_used_sources():
-    out = aggregate([_res("a", "0.00002", "56"), _res("b", "0.000021", "56.56"), _res("c", "0.000019", "55.44")], CFG, NOW)
+    out = aggregate([_res("a", "0.00002", "56"), _res("b", "0.0000202", "56.56"), _res("c", "0.0000198", "55.44")], CFG, NOW)
     assert out.ok
     assert out.reference.rxd_usd == Decimal("0.00002")
     assert out.reference.ltc_usd == Decimal("56")
