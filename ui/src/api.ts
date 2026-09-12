@@ -35,6 +35,7 @@ export interface BotStatus {
   reachable: boolean;
   error?: string;
   process: ProcessInfo;
+  bot_version?: string;
   state?: string;
   state_reason?: string;
   dry_run?: number;
@@ -150,6 +151,7 @@ export const api = {
   logsGet: (which: "bot" | "kdf") => invoke<string[]>("logs_get", { which }),
   logsClear: (which: "bot" | "kdf") => invoke<void>("logs_clear", { which }),
   livePhrase: () => invoke<string>("live_phrase"),
+  appVersion: () => invoke<string>("app_version"),
 };
 
 export function onLog(which: "bot" | "kdf", cb: (line: string) => void): Promise<UnlistenFn> {

@@ -30,6 +30,7 @@ export default function App() {
   const [notice, setNotice] = useState<{ kind: "ok" | "error" | "warn"; text: string } | null>(null);
   const [liveDialog, setLiveDialog] = useState(false);
   const [configDryRun, setConfigDryRun] = useState<boolean | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -43,6 +44,7 @@ export default function App() {
 
   useEffect(() => {
     api.settingsGet().then(setSettings).catch((e) => setNotice({ kind: "error", text: String(e) }));
+    api.appVersion().then(setAppVersion).catch(() => setAppVersion(null));
     (async () => {
       await refresh();
       try {
@@ -125,6 +127,13 @@ export default function App() {
     <div className="app">
       <div className="topbar">
         <h1>RXD/LTC Liquidity Bot</h1>
+        {appVersion && (
+          <span className="muted small mono"
+                title={status?.bot_version && status.bot_version !== appVersion ? `bot ${status.bot_version} (restart the bot to match the app)` : "app and bot version"}>
+            v{appVersion}
+            {status?.bot_version && status.bot_version !== appVersion && <span style={{ color: "var(--amber)" }}> · bot v{status.bot_version}</span>}
+          </span>
+        )}
         {stateBadge()}
         {status?.reachable && (status.dry_run ? <span className="badge blue">DRY RUN</span> : <span className="badge red">LIVE</span>)}
         {status?.reachable && status.paused ? <span className="badge amber small" title={status.paused_reason ?? ""}>{status.operator_paused ? "operator pause" : "auto pause"}</span> : null}

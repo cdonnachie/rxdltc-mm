@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Callable
 
+from rxdltc_mm import __version__
 from rxdltc_mm.config import BotConfig, CoinActivation
 from rxdltc_mm.engine.planner import Action, OrderIntent, Plan, build_plan, group_by_side
 from rxdltc_mm.engine.safety import FailureCounter, PauseController, PriceMoveMonitor
@@ -656,6 +657,7 @@ class LiquidityBot:
                                  "last_error": p.health.last_error,
                                  "price_rxd_per_ltc": str(ref.source_prices[p.name]) if ref and p.name in ref.source_prices else None}
         status = {
+            "bot_version": __version__,
             "state": self.sm.state.value, "state_reason": self.sm.reason, "dry_run": int(self.dry_run),
             "pair": f"{self.cfg.pair.base}/{self.cfg.pair.quote}", "base": self.cfg.pair.base, "quote": self.cfg.pair.quote,
             "poll_interval_seconds": self.cfg.poll_interval_seconds, "started_at": self.started_at, "now": now,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, type BotStatus, copyText, fmtDuration, fmtM, fmtNum, fmtTime, fmtUsd, ltcPerRxd, rebalanceHint } from "../api";
+import { api, type BookLevel, type BotStatus, copyText, fmtDuration, fmtM, fmtNum, fmtTime, fmtUsd, ltcPerRxd, rebalanceHint } from "../api";
 
 function Address({ label, value, holding }: { label: string; value: string | null | undefined; holding?: string }) {
   const [copied, setCopied] = useState(false);
@@ -44,6 +44,22 @@ function RebalanceCard({ status }: { status: BotStatus }) {
   );
 }
 
+/** One order-book level. `price_rxd_per_ltc` is RXD per LTC, so the dollar price of one RXD
+ *  is the LTC rate divided by it (1 LTC = P RXD, and 1 LTC costs `ltcUsd`). */
+function BookRow({ level, side, ltcUsd }: { level: BookLevel; side: "sell" | "buy"; ltcUsd: number | null }) {
+  const price = Number(level.price_rxd_per_ltc);
+  const usdPerRxd = ltcUsd && price > 0 ? ltcUsd / price : null;
+  const levelValue = usdPerRxd !== null ? usdPerRxd * Number(level.rxd) : null;
+  return (
+    <tr className={level.mine ? "mine" : ""}>
+      <td>{level.mine ? "mine" : side}</td>
+      <td className="num">{fmtM(level.price_rxd_per_ltc)}</td>
+      {ltcUsd ? <td className="num">{usdPerRxd === null ? "–" : fmtUsd(usdPerRxd, 8)}</td> : null}
+      <td className="num" title={levelValue === null ? "" : `${fmtUsd(levelValue)} at this price`}>{fmtNum(level.rxd, 0)}</td>
+    </tr>
+  );
+}
+
 export default function Dashboard({ status }: { status: BotStatus | null }) {
   if (!status) return <div className="muted">Loading…</div>;
   if (!status.process.running && !status.reachable) {
@@ -67,6 +83,13 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
   }
   const base = status.base ?? "RXD", quote = status.quote ?? "LTC";
   const bid = status.orders?.bid, ask = status.orders?.ask;
+  const ltcUsd = status.ltc_usd ? Number(status.ltc_usd) : null;
+  /** Dollar price of one base coin at a given RXD-per-LTC quote. */
+  const usdOf = (priceRxdPerLtc: string | null | undefined): number | null => {
+    const p = Number(priceRxdPerLtc);
+    return ltcUsd && p > 0 ? ltcUsd / p : null;
+  };
+  const fairUsd = usdOf(status.fair_price_rxd_per_ltc);
   return (
     <div className="grid" style={{ gap: 12 }}>
       {status.paused ? (
@@ -84,18 +107,21 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           <h2>Fair price</h2>
           <span className="value">{fmtM(status.fair_price_rxd_per_ltc)}</span>
           <span className="sub">{base} per {quote} · {ltcPerRxd(status.fair_price_rxd_per_ltc)} LTC/RXD</span>
+          {fairUsd !== null && <span className="sub">{fmtUsd(fairUsd, 8)} per {base} · {fmtUsd(status.ltc_usd)} per {quote}</span>}
           <span className="sub">{status.reference_sources} sources · disagreement {fmtNum(status.reference_disagreement_pct, 2)}%</span>
         </div>
         <div className="card stat">
           <h2>Bid · bot buys {base}</h2>
           <span className="value">{fmtM(status.target_bid_rxd_per_ltc)}</span>
-          <span className="sub">{status.targets_detail?.bid_ltc_per_rxd ? Number(status.targets_detail.bid_ltc_per_rxd).toExponential(4) + " LTC/RXD" : "not quoting"}</span>
+          <span className="sub">{status.targets_detail?.bid_ltc_per_rxd ? Number(status.targets_detail.bid_ltc_per_rxd).toExponential(4) + " LTC/RXD" : "not quoting"}
+            {usdOf(status.target_bid_rxd_per_ltc) !== null && ` · ${fmtUsd(usdOf(status.target_bid_rxd_per_ltc), 8)}`}</span>
           <span className="sub">{bid ? `open @ ${fmtM(bid.price_rxd_per_ltc)} · ${fmtNum(bid.amount, 8)} ${quote}` : "no open bid"}</span>
         </div>
         <div className="card stat">
           <h2>Ask · bot sells {base}</h2>
           <span className="value">{fmtM(status.target_ask_rxd_per_ltc)}</span>
-          <span className="sub">{status.targets_detail?.ask_ltc_per_rxd ? Number(status.targets_detail.ask_ltc_per_rxd).toExponential(4) + " LTC/RXD" : "not quoting"}</span>
+          <span className="sub">{status.targets_detail?.ask_ltc_per_rxd ? Number(status.targets_detail.ask_ltc_per_rxd).toExponential(4) + " LTC/RXD" : "not quoting"}
+            {usdOf(status.target_ask_rxd_per_ltc) !== null && ` · ${fmtUsd(usdOf(status.target_ask_rxd_per_ltc), 8)}`}</span>
           <span className="sub">{ask ? `open @ ${fmtM(ask.price_rxd_per_ltc)} · ${fmtNum(ask.amount, 2)} ${base}` : "no open ask"}</span>
         </div>
         <div className="card stat">
@@ -116,21 +142,36 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           <h2>Order book (foreign quotes, {base} per {quote})</h2>
           {status.orderbook ? (
             <table>
-              <thead><tr><th>side</th><th className="num">price</th><th className="num">{base}</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>side</th>
+                  <th className="num">price</th>
+                  {ltcUsd ? <th className="num" title={`converted at ${fmtUsd(status.ltc_usd)} per ${quote}`}>$/{base}</th> : null}
+                  <th className="num">{base}</th>
+                </tr>
+              </thead>
               <tbody>
                 {/* asks: worst (fewest RXD per LTC) at the top, best touching the fair line */}
                 {[...status.orderbook.asks].sort((a, b) => Number(a.price_rxd_per_ltc) - Number(b.price_rxd_per_ltc)).slice(-8).map((l, i) => (
-                  <tr key={"a" + i} className={l.mine ? "mine" : ""}><td>{l.mine ? "mine" : "sell"}</td><td className="num">{fmtM(l.price_rxd_per_ltc)}</td><td className="num">{fmtNum(l.rxd, 0)}</td></tr>
+                  <BookRow key={"a" + i} level={l} side="sell" ltcUsd={ltcUsd} />
                 ))}
-                <tr><td colSpan={3} className="muted small">fair {fmtM(status.fair_price_rxd_per_ltc)}</td></tr>
+                <tr>
+                  <td colSpan={ltcUsd ? 4 : 3} className="muted small">
+                    fair {fmtM(status.fair_price_rxd_per_ltc)}
+                    {fairUsd !== null && <> · {fmtUsd(fairUsd, 8)} per {base}</>}
+                  </td>
+                </tr>
                 {/* bids: best (fewest RXD per LTC, i.e. paying the most) touching the fair line */}
                 {[...status.orderbook.bids].sort((a, b) => Number(a.price_rxd_per_ltc) - Number(b.price_rxd_per_ltc)).slice(0, 8).map((l, i) => (
-                  <tr key={"b" + i} className={l.mine ? "mine" : ""}><td>{l.mine ? "mine" : "buy"}</td><td className="num">{fmtM(l.price_rxd_per_ltc)}</td><td className="num">{fmtNum(l.rxd, 0)}</td></tr>
+                  <BookRow key={"b" + i} level={l} side="buy" ltcUsd={ltcUsd} />
                 ))}
               </tbody>
             </table>
           ) : <span className="muted">no data</span>}
-          <p className="muted small">Larger number = cheaper {base}. Sells above the fair line are foreign asks, buys below are foreign bids.</p>
+          <p className="muted small">
+            Larger number = cheaper {base}. Sells above the fair line are foreign asks, buys below are foreign bids.
+            {ltcUsd ? <> The dollar column is the same price per {base}, converted with the reference {quote} rate; hover a size for the level's dollar value.</> : null}
+          </p>
         </div>
         <div className="card">
           <h2>Last plan</h2>
@@ -162,6 +203,7 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           <h2>Statistics</h2>
           <table>
             <tbody>
+              <tr><td>bot version</td><td className="num">{status.bot_version ?? "–"}</td></tr>
               <tr><td>state</td><td className="num">{status.state} <span className="muted small">{status.state_reason}</span></td></tr>
               <tr><td>uptime</td><td className="num">{fmtDuration(status.uptime_seconds)}</td></tr>
               <tr><td>cycles</td><td className="num">{status.cycles_total}</td></tr>

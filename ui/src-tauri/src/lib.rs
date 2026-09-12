@@ -666,6 +666,11 @@ fn live_phrase() -> &'static str {
     LIVE_PHRASE
 }
 
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
 // ------------------------------------------------------------------ app
 
 pub fn run() {
@@ -754,6 +759,7 @@ pub fn run() {
             logs_get,
             logs_clear,
             live_phrase,
+            app_version,
             setup_status,
             setup_init_workspace,
             setup_download_kdf,
