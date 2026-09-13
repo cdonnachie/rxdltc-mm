@@ -26,7 +26,7 @@ from typing import Any, Callable
 from rxdltc_mm import __version__
 from rxdltc_mm.config import BotConfig, CoinActivation
 from rxdltc_mm.engine.planner import Action, OrderIntent, Plan, build_plan, group_by_side
-from rxdltc_mm.engine.safety import FailureCounter, PauseController, PriceMoveMonitor
+from rxdltc_mm.engine.safety import FailureCounter, PauseController, PriceAnchor, PriceMoveMonitor
 from rxdltc_mm.engine.state import BotState, StateMachine
 from rxdltc_mm.inventory import Inventory, compute_skew_pct, side_permissions
 from rxdltc_mm.kdf.client import KdfClientProtocol
@@ -97,6 +97,11 @@ class LiquidityBot:
         self.sm = StateMachine(now=now)
         self.pause = PauseController(cfg.safety.cooldown_seconds, cfg.safety.recovery_seconds)
         self.price_monitor = PriceMoveMonitor(cfg.safety.max_price_move_pct, cfg.safety.max_price_move_window_seconds)
+        self.anchor = PriceAnchor(cfg.safety.anchor_window_seconds, cfg.safety.max_anchor_deviation_pct,
+                                  cfg.safety.anchor_min_span_seconds)
+        seeded = self.anchor.seed(store.recent_reference_prices(now - cfg.safety.anchor_window_seconds), now)
+        if seeded:
+            log.info("price anchor seeded from history", samples=seeded, span_s=int(self.anchor.span_seconds(now)))
         self.rpc_failures = FailureCounter(cfg.safety.rpc_failure_limit)
         self.order_errors = FailureCounter(cfg.safety.order_error_limit)
         self.cycles = 0
@@ -263,6 +268,19 @@ class LiquidityBot:
         if move is not None:
             raise UnsafeCondition(f"fair price moved {move:.2f}% within {self.cfg.safety.max_price_move_window_seconds:.0f}s "
                                   f"(limit {self.cfg.safety.max_price_move_pct}%)")
+        if self.cfg.safety.anchor_enabled:
+            self.anchor.observe(now, ref.fair_rxd_per_ltc)
+            drift = self.anchor.check(ref.fair_rxd_per_ltc, now)
+            anchor_value = self.anchor.value(now)
+            if anchor_value is not None:
+                log.debug("price anchor", anchor=decimal_to_str(anchor_value, 0), samples=self.anchor.samples,
+                          deviation_pct=f"{self.anchor.deviation_pct(ref.fair_rxd_per_ltc, now):.2f}")
+            if drift is not None:
+                raise UnsafeCondition(
+                    f"fair price {decimal_to_str(ref.fair_rxd_per_ltc, 0)} is {drift:+.1f}% from the "
+                    f"{self.cfg.safety.anchor_window_seconds / 60:.0f}-minute anchor "
+                    f"{decimal_to_str(anchor_value or Decimal(0), 0)} (limit {self.cfg.safety.max_anchor_deviation_pct}%)"
+                )
         return ref
 
     # --------------------------------------------------------------- market
@@ -695,6 +713,13 @@ class LiquidityBot:
             "reference_sources": ref.number_of_sources if ref else 0,
             "reference_disagreement_pct": str(ref.disagreement_pct) if ref else None,
             "reference_reason": self.last_aggregation.reason if self.last_aggregation else None,
+            "anchor_rxd_per_ltc": (lambda v: str(v) if v else None)(self.anchor.value(now)),
+            "anchor_deviation_pct": (lambda d: str(d) if d is not None else None)(
+                self.anchor.deviation_pct(ref.fair_rxd_per_ltc, now) if ref else None),
+            "anchor_samples": self.anchor.samples,
+            "anchor_span_seconds": self.anchor.span_seconds(now),
+            "anchor_limit_pct": str(self.cfg.safety.max_anchor_deviation_pct),
+            "anchor_enabled": int(self.cfg.safety.anchor_enabled),
             "balance_rxd": str(snap.rxd.spendable) if snap else None,
             "balance_ltc": str(snap.ltc.spendable) if snap else None,
             "address_rxd": snap.rxd.address if snap else None,

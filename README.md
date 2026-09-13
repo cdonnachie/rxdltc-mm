@@ -298,6 +298,7 @@ The bot **cancels all pair orders and enters `PAUSED`** when:
 | 2 | quote fetched too long ago, or source-reported update time too old | `pricing.reference_stale_seconds`, `pricing.max_source_age_seconds` |
 | 3 | fewer healthy sources than required | `pricing.min_valid_providers` |
 | 4 | fair price moved more than X% inside the window | `safety.max_price_move_pct`, `max_price_move_window_seconds` |
+| 4b | fair price sits too far from the slow anchor (median of the last hour) | `safety.anchor_enabled`, `anchor_window_seconds`, `max_anchor_deviation_pct`, `anchor_min_span_seconds` |
 | 5 | KDF RPC unavailable (`RPC_ERROR`, then `PAUSED` on recovery) | `safety.rpc_failure_limit` |
 | 6 | balance data cannot be trusted (negative / non-finite) | |
 | 7 | ambiguous order state (more than one order per side, or a failed cancel followed by uncertainty) | `reconcile.cancel_unknown_orders` |
@@ -308,6 +309,17 @@ The bot **cancels all pair orders and enters `PAUSED`** when:
 While paused it keeps monitoring, re-cancels anything that reappears, and
 resumes only after `safety.cooldown_seconds` **and** `safety.recovery_seconds`
 of consecutive healthy cycles.
+
+**The slow anchor** deserves a note of its own. RXD trades a few thousand
+dollars a day on a single live market, so a few hundred dollars of buying can
+move the reference by tens of percent. Every accepted fair price is recorded,
+and quoting stops while the current one sits further than
+`max_anchor_deviation_pct` from the median of the last
+`anchor_window_seconds`. Because that median is itself rolling, a genuine
+move is followed rather than blocked: a step change pauses quoting for about
+half the window, and a steady trend is tolerated up to roughly the limit per
+half-window, about 10% per 30 minutes with the defaults. History is seeded
+from the database on startup, so a restart does not reset the protection.
 
 Additional protections that are always on:
 

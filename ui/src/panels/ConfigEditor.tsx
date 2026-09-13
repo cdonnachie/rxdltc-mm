@@ -46,6 +46,10 @@ const SECTIONS: Section[] = [
   { title: "Safety", fields: [
     { path: "safety.max_price_move_pct", label: "Max price move %", type: "number" },
     { path: "safety.max_price_move_window_seconds", label: "Price move window (s)", type: "number" },
+    { path: "safety.anchor_enabled", label: "Slow price anchor enabled", type: "bool" },
+    { path: "safety.anchor_window_seconds", label: "Anchor window (s)", type: "number" },
+    { path: "safety.max_anchor_deviation_pct", label: "Max deviation from anchor %", type: "number" },
+    { path: "safety.anchor_min_span_seconds", label: "Anchor warm-up (s)", type: "number" },
     { path: "safety.max_quote_deviation_pct", label: "Max quote deviation from fair %", type: "number" },
     { path: "safety.rpc_failure_limit", label: "RPC failure limit", type: "number" },
     { path: "safety.order_error_limit", label: "Order error limit", type: "number" },

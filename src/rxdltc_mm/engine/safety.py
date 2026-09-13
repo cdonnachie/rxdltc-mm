@@ -6,6 +6,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from decimal import Decimal
+from statistics import median
 
 from rxdltc_mm.pricing import HUNDRED
 
@@ -30,6 +31,76 @@ class PriceMoveMonitor:
                 worst = move
         self._history.append((now, price))
         return worst
+
+    def reset(self) -> None:
+        self._history.clear()
+
+
+class PriceAnchor:
+    """A slow reference that the fast fair price is checked against.
+
+    The anchor is the median of accepted fair prices over a trailing window
+    (an hour by default). A quote built from a fair price far from that median
+    is refused, which is the defence against a thin market being pushed: RXD
+    trades a few thousand dollars a day, so a few hundred dollars can move the
+    only live source by tens of percent.
+
+    Because the anchor is a rolling median it follows a *genuine* move. A step
+    change pauses quoting until the new level makes up half the window, so
+    roughly half the window; a gradual move never trips it at all.
+
+    The check is skipped until the history spans ``min_span_seconds``, so a
+    fresh start does not enforce a limit it cannot yet justify. History is
+    seeded from the database on startup, so a restart does not reset it.
+    """
+
+    def __init__(self, window_seconds: float, max_deviation_pct: Decimal, min_span_seconds: float):
+        self.window_seconds = window_seconds
+        self.max_deviation_pct = max_deviation_pct
+        self.min_span_seconds = min_span_seconds
+        self._history: deque[tuple[float, Decimal]] = deque()
+
+    def seed(self, samples: list[tuple[float, Decimal]], now: float) -> int:
+        """Load historical (timestamp, price) pairs, oldest first."""
+        for ts, price in sorted(samples):
+            if price > 0 and now - ts <= self.window_seconds:
+                self._history.append((ts, price))
+        return len(self._history)
+
+    def _prune(self, now: float) -> None:
+        while self._history and now - self._history[0][0] > self.window_seconds:
+            self._history.popleft()
+
+    def observe(self, now: float, price: Decimal) -> None:
+        self._prune(now)
+        self._history.append((now, price))
+
+    @property
+    def samples(self) -> int:
+        return len(self._history)
+
+    def span_seconds(self, now: float) -> float:
+        return now - self._history[0][0] if self._history else 0.0
+
+    def value(self, now: float) -> Decimal | None:
+        """Median of the window, or None while the history is too short."""
+        self._prune(now)
+        if len(self._history) < 2 or self.span_seconds(now) < self.min_span_seconds:
+            return None
+        return Decimal(median(price for _, price in self._history))
+
+    def deviation_pct(self, price: Decimal, now: float) -> Decimal | None:
+        anchor = self.value(now)
+        if anchor is None or anchor <= 0:
+            return None
+        return (price - anchor) / anchor * HUNDRED
+
+    def check(self, price: Decimal, now: float) -> Decimal | None:
+        """Signed deviation when it exceeds the limit, otherwise None."""
+        dev = self.deviation_pct(price, now)
+        if dev is not None and abs(dev) > self.max_deviation_pct:
+            return dev
+        return None
 
     def reset(self) -> None:
         self._history.clear()

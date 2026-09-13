@@ -54,6 +54,12 @@ export interface BotStatus {
   reference_sources?: number;
   reference_disagreement_pct?: string | null;
   reference_reason?: string | null;
+  anchor_rxd_per_ltc?: string | null;
+  anchor_deviation_pct?: string | null;
+  anchor_samples?: number;
+  anchor_span_seconds?: number;
+  anchor_limit_pct?: string;
+  anchor_enabled?: number;
   balance_rxd?: string | null;
   balance_ltc?: string | null;
   address_rxd?: string | null;

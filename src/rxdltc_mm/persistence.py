@@ -76,6 +76,25 @@ class Store:
                  json.dumps(detail, default=str)),
             )
 
+    def recent_reference_prices(self, since_ts: float) -> list[tuple[float, Decimal]]:
+        """Accepted fair prices newer than ``since_ts``, oldest first. Used to seed the
+        price anchor so a restart does not lose its history."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT ts, fair_rxd_per_ltc FROM reference_prices "
+                "WHERE ts >= ? AND fair_rxd_per_ltc IS NOT NULL ORDER BY ts",
+                (since_ts,),
+            ).fetchall()
+        out: list[tuple[float, Decimal]] = []
+        for ts, price in rows:
+            try:
+                value = Decimal(str(price))
+            except Exception:  # noqa: BLE001 - a corrupt row must not stop startup
+                continue
+            if value > 0:
+                out.append((float(ts), value))
+        return out
+
     def record_balance(self, ts: float, coin: str, spendable: Decimal, unspendable: Decimal) -> None:
         with self._lock:
             self._conn.execute("INSERT INTO balances(ts, coin, spendable, unspendable) VALUES (?, ?, ?, ?)",

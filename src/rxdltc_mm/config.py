@@ -123,6 +123,13 @@ class ReserveConfig(_Strict):
 class SafetyConfig(_Strict):
     max_price_move_pct: Decimal = Decimal("5.0")
     max_price_move_window_seconds: float = 300.0
+    # Slow anchor: the fair price is compared with the median of the last
+    # `anchor_window_seconds`, and quoting stops while it sits further away than
+    # `max_anchor_deviation_pct`. Protects against a thin market being pushed.
+    anchor_enabled: bool = True
+    anchor_window_seconds: float = 3600.0
+    max_anchor_deviation_pct: Decimal = Decimal("10.0")
+    anchor_min_span_seconds: float = 900.0
     max_quote_deviation_pct: Decimal = Decimal("3.0")
     rpc_failure_limit: int = 3
     order_error_limit: int = 3

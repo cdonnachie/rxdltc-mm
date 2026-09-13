@@ -131,6 +131,15 @@ reserve:
 safety:
   max_price_move_pct: 5.0
   max_price_move_window_seconds: 300
+  # Slow anchor. The fair price is compared with the median of the last anchor_window_seconds and
+  # quoting stops while it sits further away than max_anchor_deviation_pct. RXD trades a few thousand
+  # dollars a day on one live market, so a few hundred dollars can move it tens of percent; this stops
+  # the bot quoting into a pushed price. Because the anchor is a rolling median it follows a genuine
+  # move: a step change pauses quoting for about half the window, a gradual move never trips it.
+  anchor_enabled: true
+  anchor_window_seconds: 3600
+  max_anchor_deviation_pct: 10.0
+  anchor_min_span_seconds: 900        # no anchor check until this much history exists (seeded from the database)
   max_quote_deviation_pct: 3.0        # any quote further than this from fair -> pause
   rpc_failure_limit: 3                # consecutive RPC failures before RPC_ERROR
   order_error_limit: 3                # consecutive order place/cancel errors before PAUSED

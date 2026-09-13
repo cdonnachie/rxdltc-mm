@@ -109,6 +109,16 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           <span className="sub">{base} per {quote} · {ltcPerRxd(status.fair_price_rxd_per_ltc)} LTC/RXD</span>
           {fairUsd !== null && <span className="sub">{fmtUsd(fairUsd, 8)} per {base} · {fmtUsd(status.ltc_usd)} per {quote}</span>}
           <span className="sub">{status.reference_sources} sources · disagreement {fmtNum(status.reference_disagreement_pct, 2)}%</span>
+          {status.anchor_enabled ? (
+            <span className="sub" title={`median of the last ${Math.round((status.anchor_span_seconds ?? 0) / 60)} min (${status.anchor_samples} samples); quoting stops beyond ${status.anchor_limit_pct}%`}>
+              anchor {status.anchor_rxd_per_ltc ? fmtM(status.anchor_rxd_per_ltc) : "building…"}
+              {status.anchor_deviation_pct != null && (
+                <span style={{ color: Math.abs(Number(status.anchor_deviation_pct)) > Number(status.anchor_limit_pct ?? 10) * 0.6 ? "var(--amber)" : undefined }}>
+                  {" "}{Number(status.anchor_deviation_pct) >= 0 ? "+" : ""}{fmtNum(status.anchor_deviation_pct, 1)}%
+                </span>
+              )}
+            </span>
+          ) : null}
         </div>
         <div className="card stat">
           <h2>Bid · bot buys {base}</h2>
