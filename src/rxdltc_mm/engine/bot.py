@@ -76,6 +76,13 @@ def _diff_paths(old: dict[str, Any], new: dict[str, Any], prefix: str = "") -> l
     return out
 
 
+def _usd_per_base(ref: ReferencePrice | None, price_base_per_quote: Decimal | None) -> str | None:
+    """Dollar price of one base coin at a quote expressed as base per quote."""
+    if ref is None or not ref.ltc_usd or not price_base_per_quote or price_base_per_quote <= 0:
+        return None
+    return str(ref.ltc_usd / price_base_per_quote)
+
+
 @dataclass
 class MarketSnapshot:
     rxd: Balance
@@ -839,6 +846,14 @@ class LiquidityBot:
             "address_ltc": snap.ltc.address if snap else None,
             "rxd_usd": str(ref.rxd_usd) if ref and ref.rxd_usd else None,
             "ltc_usd": str(ref.ltc_usd) if ref and ref.ltc_usd else None,
+            # The same quotes expressed as the dollar price of one base coin, which is what
+            # people compare against an exchange. usd_per_base = ltc_usd / (base per quote).
+            "fair_price_usd_per_rxd": _usd_per_base(ref, ref.fair_rxd_per_ltc if ref else None),
+            "target_bid_usd_per_rxd": _usd_per_base(ref, t.bid_rxd_per_ltc if t else None),
+            "target_ask_usd_per_rxd": _usd_per_base(ref, t.ask_rxd_per_ltc if t else None),
+            "portfolio_usd": (
+                str((snap.rxd.spendable * ref.rxd_usd + snap.ltc.spendable * ref.ltc_usd).quantize(Decimal("0.01")))
+                if snap and ref and ref.rxd_usd and ref.ltc_usd else None),
             "balance_rxd_usd": str((snap.rxd.spendable * ref.rxd_usd).quantize(Decimal("0.01"))) if snap and ref and ref.rxd_usd else None,
             "balance_ltc_usd": str((snap.ltc.spendable * ref.ltc_usd).quantize(Decimal("0.01"))) if snap and ref and ref.ltc_usd else None,
             "inventory_target_pct": str(self.cfg.inventory.target_rxd_value_pct),

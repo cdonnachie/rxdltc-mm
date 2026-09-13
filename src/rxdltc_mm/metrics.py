@@ -41,6 +41,14 @@ class ControlTarget(Protocol):
 
 _GAUGES = (
     ("fair_price_rxd_per_ltc", "Fair reference price, RXD per LTC"),
+    ("fair_price_usd_per_rxd", "Fair reference price in USD per RXD"),
+    ("target_bid_usd_per_rxd", "Target RXD bid in USD per RXD"),
+    ("target_ask_usd_per_rxd", "Target RXD ask in USD per RXD"),
+    ("rxd_usd", "Median USD price of one RXD across the used sources"),
+    ("ltc_usd", "Median USD price of one LTC across the used sources"),
+    ("balance_rxd_usd", "Spendable RXD balance valued in USD"),
+    ("balance_ltc_usd", "Spendable LTC balance valued in USD"),
+    ("portfolio_usd", "Total wallet value in USD"),
     ("target_bid_rxd_per_ltc", "Target RXD bid (bot buys RXD), RXD per LTC"),
     ("target_ask_rxd_per_ltc", "Target RXD ask (bot sells RXD), RXD per LTC"),
     ("balance_rxd", "Spendable RXD balance"),
@@ -90,6 +98,10 @@ def render_prometheus(snap: dict[str, Any]) -> str:
         lines.append(f'{p}provider_healthy{{provider="{name}"}} {1 if info.get("healthy") else 0}')
         if info.get("price_rxd_per_ltc") is not None:
             lines.append(f'{p}provider_price_rxd_per_ltc{{provider="{name}"}} {float(info["price_rxd_per_ltc"])}')
+        if info.get("rxd_usd") is not None:
+            lines.append(f'{p}provider_rxd_usd{{provider="{name}"}} {float(info["rxd_usd"])}')
+        if info.get("ltc_usd") is not None:
+            lines.append(f'{p}provider_ltc_usd{{provider="{name}"}} {float(info["ltc_usd"])}')
     return "\n".join(lines) + "\n"
 
 

@@ -443,9 +443,11 @@ ssh -L 3000:127.0.0.1:3000 user@your-vps   # remote hosts; then open http://loca
 ```
 
 Grafana is bound to localhost, so reach it over a tunnel rather than opening port
-3000. A dashboard is provisioned automatically with quotes against fair value, the
-per-source prices that drive the disagreement breaker, inventory share against its
-bounds, balances, swaps, errors and provider health. Set `GRAFANA_USER` and
+3000. A dashboard is provisioned automatically. Prices are shown in dollars per RXD, since
+that is what people compare against an exchange, with quotes against fair value, each
+source's own price alongside the disagreement that drives the breaker, wallet value,
+inventory share against its bounds, balances in both dollars and coins, swaps, errors
+and provider health. Set `GRAFANA_USER` and
 `GRAFANA_PASSWORD` in `.env`.
 
 Prometheus has to be able to reach the bot's metrics port, which depends on where the

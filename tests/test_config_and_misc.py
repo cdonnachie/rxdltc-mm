@@ -154,3 +154,16 @@ def test_prometheus_rendering():
     assert "rxdltc_mm_fair_price_rxd_per_ltc 2800000.0" in text
     assert 'rxdltc_mm_open_order{side="bid"} 1' in text and 'rxdltc_mm_open_order{side="ask"} 0' in text
     assert 'rxdltc_mm_provider_healthy{provider="gecko"} 1' in text
+
+
+def test_usd_gauges_are_exported():
+    snap = {"state": "ACTIVE", "fair_price_rxd_per_ltc": "1624000", "fair_price_usd_per_rxd": "0.000033",
+            "target_bid_usd_per_rxd": "0.0000327", "target_ask_usd_per_rxd": "0.0000333",
+            "rxd_usd": "0.000033", "ltc_usd": "53.6", "portfolio_usd": "14.55",
+            "balance_rxd_usd": "4.08", "balance_ltc_usd": "10.47", "paused": 0, "orders": {"bid": None, "ask": None},
+            "providers": {"nonkyc": {"healthy": True, "price_rxd_per_ltc": "1618000", "rxd_usd": "0.0000331", "ltc_usd": "53.5"}}}
+    text = render_prometheus(snap)
+    assert "rxdltc_mm_fair_price_usd_per_rxd 3.3e-05" in text
+    assert "rxdltc_mm_portfolio_usd 14.55" in text
+    assert 'rxdltc_mm_provider_rxd_usd{provider="nonkyc"} 3.31e-05' in text
+    assert 'rxdltc_mm_provider_ltc_usd{provider="nonkyc"} 53.5' in text
