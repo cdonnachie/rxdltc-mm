@@ -442,6 +442,17 @@ docker compose -f deploy/monitoring-compose.yml up -d
 ssh -L 3000:127.0.0.1:3000 user@your-vps   # remote hosts; then open http://localhost:3000
 ```
 
+Stopping them again, matching whichever form you started:
+
+```bash
+docker compose --profile monitoring down                  # everything in the main stack
+docker compose --profile monitoring stop prometheus grafana   # monitoring only, leave the bot running
+docker compose -f deploy/monitoring-compose.yml down      # the standalone stack
+```
+
+Pass the profile to `down` and `stop` as well as `up`; without it Compose does not
+see the monitoring services. Both keep their volumes, so history survives a restart.
+
 Grafana is bound to localhost, so reach it over a tunnel rather than opening port
 3000. A dashboard is provisioned automatically. Prices are shown in dollars per RXD, since
 that is what people compare against an exchange, with quotes against fair value, each
@@ -487,7 +498,26 @@ docker compose up -d --build
 docker compose logs -f bot
 ```
 
-`stop_grace_period: 45s` lets the bot cancel orders on `docker compose stop`.
+Stopping:
+
+```bash
+docker compose stop          # stop the containers, keep them and their data
+docker compose start         # start them again
+docker compose down          # stop and remove the containers and the network
+docker compose restart bot   # just the bot, e.g. after editing config.yaml
+```
+
+`stop_grace_period: 45s` gives the bot time to cancel its orders on the way down, so
+let it finish rather than interrupting it. Do not shorten that with `-t 0`; the bot
+would be killed mid-cycle and leave orders resting on the DEX until you restart it or
+cancel them from the KDF tab.
+
+`down` keeps the named volumes, which is what you want: `kdf-db` holds the KDF
+database including the encrypted wallet, and `bot-data` holds the bot's SQLite state
+with swap history, statistics and the price history that seeds the anchor. **Never
+use `down -v` unless you mean to destroy all of that.** If the wallet was created by
+the setup wizard and you have not written the seed down elsewhere, `-v` loses the
+funds with it.
 
 ## 14. Security recommendations
 
