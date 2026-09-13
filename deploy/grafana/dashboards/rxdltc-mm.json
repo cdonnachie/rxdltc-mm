@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 4,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -62,7 +62,7 @@
     },
     {
       "type": "stat",
-      "title": "Paused",
+      "title": "Quoting",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -96,7 +96,7 @@
               "type": "value",
               "options": {
                 "0": {
-                  "text": "quoting",
+                  "text": "yes",
                   "color": "green"
                 },
                 "1": {
@@ -180,66 +180,6 @@
     },
     {
       "type": "stat",
-      "title": "Open orders",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 0
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "rxdltc-prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rxdltc_mm_open_order",
-          "legendFormat": "{{side}}",
-          "instant": true
-        }
-      ],
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "none",
-                  "color": "orange"
-                },
-                "1": {
-                  "text": "open",
-                  "color": "green"
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "type": "stat",
       "title": "Uptime",
       "gridPos": {
         "h": 4,
@@ -276,7 +216,7 @@
     {
       "type": "timeseries",
       "title": "Quotes and fair value (USD per RXD)",
-      "description": "The dollar price of one RXD. The bid is what the bot pays, the ask what it asks. Internally these are RXD per LTC, where the ordering looks inverted.",
+      "description": "Solid lines are what the bot wants to quote; dashed lines are the orders actually resting on the DEX. They drift apart until the price moves past the reprice threshold and the order has outlived the minimum lifetime, then snap back together.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -302,6 +242,16 @@
           "refId": "C",
           "expr": "rxdltc_mm_target_ask_usd_per_rxd",
           "legendFormat": "ask (bot sells)"
+        },
+        {
+          "refId": "D",
+          "expr": "rxdltc_mm_open_order_price_usd_per_rxd{side=\"bid\"}",
+          "legendFormat": "bid resting"
+        },
+        {
+          "refId": "E",
+          "expr": "rxdltc_mm_open_order_price_usd_per_rxd{side=\"ask\"}",
+          "legendFormat": "ask resting"
         }
       ],
       "fieldConfig": {
@@ -313,7 +263,52 @@
             "fillOpacity": 0
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "bid resting"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ask resting"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -760,6 +755,126 @@
             ]
           }
         ]
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Bid (bot buys)",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "rxdltc-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rxdltc_mm_open_order_price_usd_per_rxd{side=\"bid\"}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 8,
+          "noValue": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Ask (bot sells)",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 15,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "rxdltc-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rxdltc_mm_open_order_price_usd_per_rxd{side=\"ask\"}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 8,
+          "noValue": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Order size (USD)",
+      "description": "What each resting order is worth. The bid is sized in LTC, the ask in RXD.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "rxdltc-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rxdltc_mm_open_order_value_usd",
+          "legendFormat": "{{side}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "lineInterpolation": "stepAfter"
+          }
+        },
+        "overrides": []
       }
     }
   ]

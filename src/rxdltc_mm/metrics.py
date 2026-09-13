@@ -90,8 +90,19 @@ def render_prometheus(snap: dict[str, Any]) -> str:
         o = (snap.get("orders") or {}).get(side)
         lines.append(f'{p}open_order{{side="{side}"}} {1 if o else 0}')
         if o:
-            lines.append(f'{p}open_order_price_rxd_per_ltc{{side="{side}"}} {float(o["price_rxd_per_ltc"])}')
-            lines.append(f'{p}open_order_amount{{side="{side}"}} {float(o["amount"])}')
+            price = float(o["price_rxd_per_ltc"])
+            amount = float(o["amount"])
+            lines.append(f'{p}open_order_price_rxd_per_ltc{{side="{side}"}} {price}')
+            lines.append(f'{p}open_order_amount{{side="{side}"}} {amount}')
+            # Same order in dollars: the price of one base coin, and what the order is worth.
+            # A bid is sized in the quote coin, an ask in the base coin, so they value differently.
+            ltc_usd = float(snap["ltc_usd"]) if snap.get("ltc_usd") else None
+            rxd_usd = float(snap["rxd_usd"]) if snap.get("rxd_usd") else None
+            if ltc_usd and price > 0:
+                lines.append(f'{p}open_order_price_usd_per_rxd{{side="{side}"}} {ltc_usd / price}')
+            value = amount * ltc_usd if side == "bid" and ltc_usd else (amount * rxd_usd if rxd_usd else None)
+            if value is not None:
+                lines.append(f'{p}open_order_value_usd{{side="{side}"}} {value}')
     reason = str(snap.get("paused_reason") or "").replace('"', "'").replace("\n", " ")
     lines.append(f'{p}paused_info{{reason="{reason}"}} {1 if snap.get("paused") else 0}')
     for name, info in (snap.get("providers") or {}).items():

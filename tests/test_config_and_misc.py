@@ -167,3 +167,15 @@ def test_usd_gauges_are_exported():
     assert "rxdltc_mm_portfolio_usd 14.55" in text
     assert 'rxdltc_mm_provider_rxd_usd{provider="nonkyc"} 3.31e-05' in text
     assert 'rxdltc_mm_provider_ltc_usd{provider="nonkyc"} 53.5' in text
+
+
+def test_open_order_gauges_include_usd_price_and_value():
+    snap = {"state": "ACTIVE", "paused": 0, "rxd_usd": "0.00003", "ltc_usd": "54",
+            "orders": {"bid": {"price_rxd_per_ltc": "1800000", "amount": "0.05"},
+                       "ask": {"price_rxd_per_ltc": "1750000", "amount": "100000"}}}
+    text = render_prometheus(snap)
+    assert 'rxdltc_mm_open_order_price_usd_per_rxd{side="bid"} 3e-05' in text      # 54 / 1_800_000
+    assert 'rxdltc_mm_open_order_value_usd{side="bid"} 2.7' in text                # 0.05 LTC
+    assert 'rxdltc_mm_open_order_value_usd{side="ask"} 3.0' in text                # 100k RXD
+    # without reference rates the dollar gauges are simply absent, not wrong
+    assert "open_order_price_usd_per_rxd" not in render_prometheus({"orders": snap["orders"]})
