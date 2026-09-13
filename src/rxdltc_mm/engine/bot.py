@@ -29,6 +29,7 @@ from rxdltc_mm.config import BotConfig, CoinActivation, load_config
 from rxdltc_mm.engine.planner import Action, OrderIntent, Plan, build_plan, group_by_side
 from rxdltc_mm.engine.safety import FailureCounter, PauseController, PriceAnchor, PriceMoveMonitor
 from rxdltc_mm.engine.state import BotState, StateMachine
+from rxdltc_mm.heartbeat import Heartbeat
 from rxdltc_mm.inventory import Inventory, compute_skew_pct, side_permissions
 from rxdltc_mm.kdf.client import KdfClientProtocol
 from rxdltc_mm.kdf.models import Balance, MakerOrder, Orderbook, SwapInfo
@@ -127,6 +128,10 @@ class LiquidityBot:
         seeded = self.anchor.seed(store.recent_reference_prices(now - cfg.safety.anchor_window_seconds), now)
         if seeded:
             log.info("price anchor seeded from history", samples=seeded, span_s=int(self.anchor.span_seconds(now)))
+        self.heartbeat = Heartbeat(cfg.monitoring.heartbeat_url,
+                                   min_interval_seconds=cfg.monitoring.heartbeat_min_interval_seconds,
+                                   report_failures=cfg.monitoring.heartbeat_report_failures,
+                                   timeout_seconds=cfg.monitoring.heartbeat_timeout_seconds)
         self.rpc_failures = FailureCounter(cfg.safety.rpc_failure_limit)
         self.order_errors = FailureCounter(cfg.safety.order_error_limit)
         self.cycles = 0
@@ -237,6 +242,9 @@ class LiquidityBot:
         self.pause.recovery_seconds = s.recovery_seconds
         self.rpc_failures.limit = max(1, s.rpc_failure_limit)
         self.order_errors.limit = max(1, s.order_error_limit)
+        m = self.cfg.monitoring
+        self.heartbeat.reconfigure(m.heartbeat_url, m.heartbeat_min_interval_seconds,
+                                   m.heartbeat_report_failures, m.heartbeat_timeout_seconds)
         logging.getLogger().setLevel(self.cfg.logging.level.upper())
         update_trading = getattr(self.kdf, "update_trading", None)
         if callable(update_trading):  # confirmations and min_volume live on the KDF client
@@ -324,6 +332,7 @@ class LiquidityBot:
             if self.sm.state in (BotState.STARTING, BotState.WAITING_FOR_REFERENCE):
                 self.sm.transition(BotState.ACTIVE, "reference price and KDF state available", now=now)
             self._quote(ref, snap, now)
+            self.heartbeat.ok(now)
         except _Wait as exc:
             log.info("waiting for a valid reference price", reason=str(exc))
             if snap is not None and snap.orders:
@@ -560,6 +569,7 @@ class LiquidityBot:
         self.pause.pause(reason, now)
         self.targets = None
         self.sm.transition(BotState.PAUSED, reason, now=now)
+        self.heartbeat.fail(now, reason)
         if first:
             log.warning("SAFETY TRIGGER: pausing", reason=reason)
             self.store.record_event("WARNING", "pause", reason)
@@ -604,6 +614,7 @@ class LiquidityBot:
             self.order_errors.success()
             self.sm.transition(BotState.ACTIVE, "recovered", now=now)
             return True
+        self.heartbeat.fail(now, self.pause.reason or "paused")
         left = self.pause.seconds_until_resume(now)
         healthy_for = now - self.pause.healthy_since if self.pause.healthy_since is not None else 0.0
         log.info("paused; conditions healthy this cycle", resume_in=f"{left:.0f}s" if left is not None else "n/a",
@@ -806,6 +817,8 @@ class LiquidityBot:
                           if self.last_plan else []),
             "recent_events": self.store.recent_events(15),
             "last_reload": self.last_reload,
+            "heartbeat": {"enabled": self.heartbeat.enabled, "sent": self.heartbeat.total_sent,
+                          "last_error": self.heartbeat.last_error},
             "resume_in_seconds": self.pause.seconds_until_resume(now),
             "fair_price_rxd_per_ltc": str(ref.fair_rxd_per_ltc) if ref else None,
             "target_bid_rxd_per_ltc": str(t.bid_rxd_per_ltc) if t and t.bid_rxd_per_ltc else None,

@@ -1,8 +1,15 @@
 # docker compose up -d
 #
-# Two services on a private network: the Komodo DeFi Framework node (kdf) and the
-# bot. The KDF RPC port is NOT published to the host; only the bot reaches it.
-# Put secrets in ./.env (see .env.example) -- compose passes them as environment.
+# Services on a private network: the Komodo DeFi Framework node (kdf), the bot, and an
+# optional monitoring pair (prometheus, grafana) behind the `monitoring` profile.
+# Nothing except Grafana and the bot's status port is reachable from the host, and both
+# are bound to 127.0.0.1 so you reach them over an SSH tunnel rather than the internet.
+#
+# Put secrets in ./.env (see .env.example); compose passes them as environment.
+#
+# For monitoring:  docker compose --profile monitoring up -d
+# and set `metrics.bind: 0.0.0.0` in config.yaml so Prometheus can reach the bot inside
+# the network. 127.0.0.1 would only be reachable from inside the bot's own container.
 
 services:
   kdf:
@@ -36,10 +43,50 @@ services:
     volumes:
       - ./config.yaml:/config/config.yaml:ro
       - bot-data:/data
+    expose:
+      - "9109"                           # scraped by prometheus inside the network
     ports:
-      - "127.0.0.1:9109:9109"           # /status and /metrics, localhost only
-    stop_grace_period: 45s              # SIGTERM -> cancel orders -> persist -> exit
+      - "127.0.0.1:9109:9109"            # /status and /metrics, localhost only
+    stop_grace_period: 45s               # SIGTERM -> cancel orders -> persist -> exit
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    depends_on:
+      - bot
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=90d
+      - --web.listen-address=0.0.0.0:9090
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    expose:
+      - "9090"
+
+  grafana:
+    image: grafana/grafana-oss:11.5.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      # Change the password, or put GF_SECURITY_ADMIN_PASSWORD in .env.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"            # reach it with: ssh -L 3000:127.0.0.1:3000 user@host
 
 volumes:
   kdf-db:
   bot-data:
+  prometheus-data:
+  grafana-data:

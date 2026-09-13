@@ -417,6 +417,34 @@ RXD/LTC fair=2.779M bid=2.809M ask=2.754M RXD=300000 LTC=0.1000 orders=1b/1a sta
 State transitions are logged as `STATE ACTIVE -> PAUSED reason="..."`. Set
 `logging.format: json` for one JSON object per line.
 
+### Monitoring a headless deployment
+
+Two things are worth watching, and they answer different questions.
+
+**A dead-man's-switch answers "is it still alive".** Set `monitoring.heartbeat_url`
+to a ping URL from healthchecks.io, Better Stack, Cronitor, Uptime Kuma or similar.
+The bot pings it after every healthy cycle, and pings `<url>/fail` while paused, so a
+safety pause raises an alert rather than looking like silence. Because the watcher
+lives elsewhere, it still fires when the whole host goes away, which monitoring
+running on that host cannot do. Failures to ping are logged and never affect trading.
+
+**Prometheus and Grafana answer "how is it behaving".** The compose file carries both
+behind a profile:
+
+```bash
+docker compose --profile monitoring up -d
+ssh -L 3000:127.0.0.1:3000 user@your-vps   # then open http://localhost:3000
+```
+
+Grafana is bound to localhost, so reach it over a tunnel rather than opening port
+3000. A dashboard is provisioned automatically with quotes against fair value, the
+per-source prices that drive the disagreement breaker, inventory share against its
+bounds, balances, swaps, errors and provider health. Set `GRAFANA_USER` and
+`GRAFANA_PASSWORD` in `.env`, and set `metrics.bind: 0.0.0.0` in `config.yaml` so
+Prometheus can reach the bot inside the compose network.
+
+Run both if you like, but if you only do one thing, do the heartbeat.
+
 ## 12. systemd deployment
 
 [deploy/rxdltc-mm.service](deploy/rxdltc-mm.service) contains the unit and

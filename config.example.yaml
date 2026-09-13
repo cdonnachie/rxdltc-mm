@@ -184,6 +184,17 @@ kdf:
         - { url: "ltc.electrum2.cipig.net:20063", protocol: SSL }
         - { url: "ltc.electrum3.cipig.net:20063", protocol: SSL }
 
+monitoring:
+  # Dead-man's-switch. The bot pings this URL after every healthy cycle; whatever watches it
+  # alerts you when the pings stop, which covers the host dying, the process crashing, the
+  # network dropping and the loop hanging. Works with healthchecks.io, Better Stack, Cronitor,
+  # Uptime Kuma and anything else that exposes a ping URL. Empty disables it.
+  # Unlike metrics scraped on the same machine, this keeps working when that machine does not.
+  heartbeat_url: ""
+  heartbeat_min_interval_seconds: 60    # do not ping more often than this
+  heartbeat_report_failures: true       # also ping <url>/fail while paused, so a safety pause alerts
+  heartbeat_timeout_seconds: 10
+
 persistence:
   sqlite_path: data/mm-bot.sqlite3
 

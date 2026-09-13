@@ -1,0 +1,13 @@
+# Scrapes the bot inside the compose network. The bot's metrics port is not published to
+# the host by the bot service itself, so this is the only thing that can reach it.
+#
+# The bot's config.yaml must set `metrics.bind: 0.0.0.0` for this to work in Docker;
+# 127.0.0.1 would only be reachable from inside the bot's own container.
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: rxdltc-mm
+    static_configs:
+      - targets: ["bot:9109"]

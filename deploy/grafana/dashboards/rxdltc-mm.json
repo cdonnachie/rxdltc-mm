@@ -1,0 +1,179 @@
+{
+  "uid": "rxdltc-mm",
+  "title": "RXD/LTC liquidity bot",
+  "tags": ["rxdltc-mm"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "State",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rxdltc_mm_state == 1", "legendFormat": "{{state}}", "instant": true }
+      ],
+      "options": { "textMode": "name", "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Paused",
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_paused", "instant": true }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "quoting", "color": "green" }, "1": { "text": "PAUSED", "color": "orange" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Mode",
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_dry_run", "instant": true }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "LIVE", "color": "red" }, "1": { "text": "dry run", "color": "blue" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Open orders",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_open_order", "legendFormat": "{{side}}", "instant": true }],
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "none", "color": "orange" }, "1": { "text": "open", "color": "green" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_uptime_seconds", "instant": true }],
+      "options": { "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Quotes and fair value (RXD per LTC)",
+      "description": "A larger number means cheaper RXD, so the bid sits above fair and the ask below it.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rxdltc_mm_fair_price_rxd_per_ltc", "legendFormat": "fair" },
+        { "refId": "B", "expr": "rxdltc_mm_target_bid_rxd_per_ltc", "legendFormat": "bid (buys RXD)" },
+        { "refId": "C", "expr": "rxdltc_mm_target_ask_rxd_per_ltc", "legendFormat": "ask (sells RXD)" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 0 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Price sources",
+      "description": "Per-provider RXD/LTC. Divergence here is what trips the disagreement breaker.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rxdltc_mm_provider_price_rxd_per_ltc", "legendFormat": "{{provider}}" },
+        { "refId": "B", "expr": "rxdltc_mm_reference_disagreement_pct", "legendFormat": "disagreement %" }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 0 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "disagreement %" },
+            "properties": [{ "id": "custom.axisPlacement", "value": "right" }, { "id": "unit", "value": "percent" }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Inventory",
+      "description": "Share of wallet value held as RXD. The bot stops bidding above the max and stops asking below the min.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_inventory_rxd_value_pct", "legendFormat": "RXD share" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "thresholdsStyle": { "mode": "dashed" } },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "orange", "value": null }, { "color": "green", "value": 25 }, { "color": "orange", "value": 75 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Balances",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rxdltc_mm_balance_rxd", "legendFormat": "RXD" },
+        { "refId": "B", "expr": "rxdltc_mm_balance_ltc", "legendFormat": "LTC" }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 0 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "LTC" },
+            "properties": [{ "id": "custom.axisPlacement", "value": "right" }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Trading and errors",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rxdltc_mm_swaps_total", "legendFormat": "swaps" },
+        { "refId": "B", "expr": "rxdltc_mm_swaps_failed_total", "legendFormat": "failed swaps" },
+        { "refId": "C", "expr": "rxdltc_mm_rpc_failures_total", "legendFormat": "RPC failures" },
+        { "refId": "D", "expr": "rxdltc_mm_order_errors_total", "legendFormat": "order errors" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 0, "drawStyle": "line" } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Two-sided liquidity provided",
+      "description": "Cumulative seconds with a live quote on both sides, across all runs.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_two_sided_seconds_total", "legendFormat": "two-sided" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Provider health",
+      "description": "1 healthy, 0 failing. A source dropping out is usually rate limiting or an API change.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "rxdltc-prometheus" },
+      "targets": [{ "refId": "A", "expr": "rxdltc_mm_provider_healthy", "legendFormat": "{{provider}}" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "custom": { "lineWidth": 2, "fillOpacity": 20, "drawStyle": "line", "lineInterpolation": "stepAfter" } }, "overrides": [] }
+    }
+  ]
+}

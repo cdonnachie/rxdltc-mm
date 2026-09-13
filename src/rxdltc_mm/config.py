@@ -187,6 +187,15 @@ class KdfConfig(_Strict):
     coins: dict[str, CoinActivation] = Field(default_factory=dict)
 
 
+class MonitoringConfig(_Strict):
+    """Dead-man's-switch ping. Empty URL disables it."""
+
+    heartbeat_url: str = ""
+    heartbeat_min_interval_seconds: float = 60.0
+    heartbeat_report_failures: bool = True   # also ping <url>/fail while paused
+    heartbeat_timeout_seconds: float = 10.0
+
+
 class PersistenceConfig(_Strict):
     sqlite_path: str = "data/mm-bot.sqlite3"
 
@@ -219,6 +228,7 @@ class BotConfig(_Strict):
     reconcile: ReconcileConfig = Field(default_factory=ReconcileConfig)
     shutdown: ShutdownConfig = Field(default_factory=ShutdownConfig)
     kdf: KdfConfig = Field(default_factory=KdfConfig)
+    monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
