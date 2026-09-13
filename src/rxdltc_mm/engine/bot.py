@@ -210,13 +210,17 @@ class LiquidityBot:
     def cycle(self) -> None:
         now = self.clock()
         self.cycles += 1
+        snap: MarketSnapshot | None = None
         try:
             self._apply_control_requests(now)
-            ref = self._update_reference(now)
+            # KDF is read first and unconditionally: balances, orders and swaps stay current even on a
+            # cycle that pauses on the reference price, so the dashboard is never blank and fills that
+            # happen during a long pause are still accounted for.
             snap = self._read_market(now)
             self._track_swaps(snap, now)
             self._check_balances(snap)
             self._check_order_state(snap)
+            ref = self._update_reference(now)
             if self.sm.state is BotState.RPC_ERROR:
                 self._enter_paused("KDF RPC recovered; cooling down before quoting", now, cancel=True)
             if self.pause.paused and not self._while_paused(snap, now):
@@ -226,6 +230,8 @@ class LiquidityBot:
             self._quote(ref, snap, now)
         except _Wait as exc:
             log.info("waiting for a valid reference price", reason=str(exc))
+            if snap is not None and snap.orders:
+                self._cancel_everything("no reference price while starting")
         except UnsafeCondition as exc:
             self._enter_paused(str(exc), now, cancel=True)
         except KdfError as exc:
@@ -251,12 +257,9 @@ class LiquidityBot:
             for src, why in agg.rejected.items():
                 log.warning("reference source rejected", source=src, reason=why)
             if self.sm.state in (BotState.STARTING, BotState.WAITING_FOR_REFERENCE):
-                # Not quoting yet: waiting is enough, no pause/cooldown needed. Still talk to KDF so
-                # connectivity problems surface, and make sure nothing is left open from a previous run.
+                # Not quoting yet, so waiting is enough and no cooldown is needed. The caller has
+                # already read KDF and cancels anything left over from a previous run.
                 self.sm.transition(BotState.WAITING_FOR_REFERENCE, agg.reason, now=now)
-                snap = self._read_market(now)
-                if snap.orders:
-                    self._cancel_everything("no reference price while starting")
                 raise _Wait(agg.reason)
             raise UnsafeCondition(f"no valid reference price: {agg.reason}")
         self.reference = ref

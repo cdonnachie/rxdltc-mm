@@ -247,3 +247,20 @@ def test_run_loop_stops_after_max_cycles(fake_kdf, clock):
     bot = _bot(make_config(), fake_kdf, providers_at(clock=clock), clock)
     bot.run(max_cycles=2)
     assert bot.cycles == 2 and bot.sm.state is BotState.SHUTTING_DOWN
+
+
+def test_market_state_is_read_even_when_the_reference_pauses(fake_kdf, clock):
+    """A pause on the price must still leave balances, orders and swaps visible."""
+    cfg = make_config(safety={"anchor_enabled": False})
+    bot = _bot(cfg, fake_kdf, providers_at(clock=clock), clock)
+    bot.cycle()
+    assert bot.sm.state is BotState.ACTIVE
+    fake_kdf.balances["RXD"] = Decimal("123456")
+    bot.providers = [StaticPriceProvider("dead", None, None, fail=True)] * 2
+    clock.advance(30)
+    bot.cycle()
+    assert bot.sm.state is BotState.PAUSED
+    status = bot.status_snapshot()
+    assert status["balance_rxd"] == "123456"  # read on the pausing cycle, not stale or missing
+    assert status["orderbook"] is not None
+    assert "my_balance" in fake_kdf.calls
