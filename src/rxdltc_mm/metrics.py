@@ -10,6 +10,7 @@ token is configured (``MM_BOT_CONTROL_TOKEN``); every control request must carry
     POST /control/cancel_all                      -> same as pause (orders are cancelled and stay cancelled)
     POST /control/stop                            -> graceful shutdown (cancel on exit per config)
     POST /control/clear_events                    -> delete the persisted event log
+    POST /control/reload                          -> re-read config.yaml and apply what can change live
     GET  /events?limit=50                         -> recent persisted events
 """
 
@@ -35,6 +36,7 @@ class ControlTarget(Protocol):
     def request_stop(self) -> str: ...
     def recent_events(self, limit: int) -> list[dict[str, Any]]: ...
     def clear_events(self) -> str: ...
+    def request_reload(self) -> str: ...
 
 
 _GAUGES = (
@@ -172,6 +174,8 @@ class MetricsServer:
                         msg = server._control.request_stop()
                     elif action == "clear_events":
                         msg = server._control.clear_events()
+                    elif action == "reload":
+                        msg = server._control.request_reload()
                     else:
                         self._json(404, {"ok": False, "error": f"unknown action {action}"})
                         return

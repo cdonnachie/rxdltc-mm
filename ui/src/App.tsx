@@ -166,7 +166,7 @@ export default function App() {
         {tab !== "setup" && <HealthChecklist status={status} setup={setup} nodeUp={nodeUp} onGo={(t) => setTab(t as Tab)} />}
         {tab === "setup" && <SetupWizard onDone={() => { setTab("dashboard"); refresh(); }} onStartBot={startBot} />}
         {tab === "dashboard" && <Dashboard status={status} />}
-        {tab === "config" && <ConfigEditor onSaved={readDryRun} botRunning={running} />}
+        {tab === "config" && <ConfigEditor onSaved={readDryRun} botRunning={running} lastReload={status?.last_reload} />}
         {tab === "kdf" && <KdfPanel settings={settings} />}
         {tab === "logs" && <LogView />}
         {tab === "settings" && settings && <SettingsPanel settings={settings} onChange={setSettings} />}

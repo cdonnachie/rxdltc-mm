@@ -107,7 +107,12 @@ function getPath(doc: Document, path: string): unknown {
   return doc.getIn(path.split("."), false);
 }
 
-export default function ConfigEditor({ onSaved, botRunning }: { onSaved: () => void; botRunning: boolean }) {
+export default function ConfigEditor({ onSaved, botRunning, lastReload }: {
+  onSaved: () => void;
+  botRunning: boolean;
+  lastReload?: { ok: boolean; error?: string; changed?: string[]; needs_restart?: string[]; at?: number } | null;
+}) {
+  const [reloading, setReloading] = useState(false);
   const [text, setText] = useState("");
   const [doc, setDoc] = useState<Document | null>(null);
   const [saved, setSaved] = useState<Document | null>(null); // last saved state, for change highlighting
@@ -150,7 +155,10 @@ export default function ConfigEditor({ onSaved, botRunning }: { onSaved: () => v
       setDirty(false);
       setSaved(parseDocument(text));
       setMsg(result.ok
-        ? { kind: botRunning ? "warn" : "ok", text: botRunning ? "Saved and valid. The running bot keeps its old settings until you stop and start it." : "Saved and valid. Previous version kept as config.yaml.bak." }
+        ? { kind: botRunning ? "warn" : "ok",
+            text: botRunning
+              ? "Saved and valid. Press Apply to running bot to use it now, or stop and start for settings that need a restart."
+              : "Saved and valid. Previous version kept as config.yaml.bak." }
         : { kind: "error", text: "Saved, but the bot rejects this config. Fix it before starting." });
       onSaved();
     } catch (e) {
@@ -210,10 +218,32 @@ export default function ConfigEditor({ onSaved, botRunning }: { onSaved: () => v
         <button className="primary" disabled={!dirty} onClick={save}>Save &amp; validate</button>
         <button disabled={!dirty} onClick={load}>Discard</button>
         <button onClick={() => setRaw(!raw)}>{raw ? "Form view" : "Raw YAML"}</button>
+        {botRunning && (
+          <button disabled={dirty || reloading}
+                  title={dirty ? "Save first" : "Re-read the file and apply everything that can change without a restart"}
+                  onClick={async () => {
+                    setReloading(true);
+                    try { await api.botControl("reload"); } catch (e) { setMsg({ kind: "error", text: String(e) }); }
+                    setTimeout(() => setReloading(false), 4000);
+                  }}>
+            {reloading ? "Applying…" : "Apply to running bot"}
+          </button>
+        )}
         {dirty && <span className="badge amber">{changedCount || ""} unsaved</span>}
-        {botRunning && <span className="muted small">Bot is running: changes apply after a restart.</span>}
       </div>
       {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
+      {botRunning && lastReload && (
+        lastReload.ok ? (
+          <div className={`notice ${lastReload.needs_restart?.length ? "warn" : "ok"}`}>
+            {lastReload.changed?.length
+              ? <>Applied to the running bot: <span className="mono small">{lastReload.changed.join(", ")}</span>.</>
+              : <>Reloaded; no values differed.</>}
+            {lastReload.needs_restart?.length ? <> Still needs a stop and start: <b>{lastReload.needs_restart.join(", ")}</b>.</> : null}
+          </div>
+        ) : (
+          <div className="notice error">Reload failed, the bot kept its current settings. {lastReload.error}</div>
+        )
+      )}
       {check && !check.ok && <pre className="notice error mono small" style={{ whiteSpace: "pre-wrap" }}>{check.output}</pre>}
       {raw ? (
         <textarea className="code" style={{ minHeight: "68vh" }} value={text} spellCheck={false}

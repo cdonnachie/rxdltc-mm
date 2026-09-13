@@ -135,6 +135,11 @@ class KdfClient:
         self._trading = trading
         self._min_volume_fraction = min_volume_fraction
 
+    def update_trading(self, trading: TradingConfig, min_volume_fraction: Decimal) -> None:
+        """Apply reloaded confirmation settings and min_volume to subsequent orders."""
+        self._trading = trading
+        self._min_volume_fraction = min_volume_fraction
+
     # ---------------------------------------------------------------- node
     def ping(self) -> str:
         data = self._rpc.legacy("version")

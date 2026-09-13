@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
 
         bot = LiquidityBot(cfg, kdf, providers, store, dry_run=dry_run, clock=sim_clock, sleep=sim_sleep)
     else:
-        bot = LiquidityBot(cfg, kdf, providers, store, dry_run=dry_run)
+        bot = LiquidityBot(cfg, kdf, providers, store, dry_run=dry_run, config_path=args.config)
 
     metrics = None
     if cfg.metrics.enabled and not args.once:

@@ -33,6 +33,11 @@ class DryRunKdfClient:
         self.would_place: list[dict[str, str]] = []
         self.would_cancel: list[str] = []
 
+    def update_trading(self, trading, min_volume_fraction) -> None:
+        update = getattr(self._inner, "update_trading", None)
+        if callable(update):
+            update(trading, min_volume_fraction)
+
     # read-only pass-through --------------------------------------------
     def ping(self) -> str:
         return self._inner.ping()

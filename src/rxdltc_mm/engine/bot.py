@@ -17,6 +17,7 @@ Any failure in 1-6 calls :meth:`_enter_paused`, which cancels all pair orders
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ from decimal import Decimal
 from typing import Any, Callable
 
 from rxdltc_mm import __version__
-from rxdltc_mm.config import BotConfig, CoinActivation
+from rxdltc_mm.config import BotConfig, CoinActivation, load_config
 from rxdltc_mm.engine.planner import Action, OrderIntent, Plan, build_plan, group_by_side
 from rxdltc_mm.engine.safety import FailureCounter, PauseController, PriceAnchor, PriceMoveMonitor
 from rxdltc_mm.engine.state import BotState, StateMachine
@@ -54,6 +55,26 @@ class UnsafeCondition(Exception):
     """Raised inside a cycle when a circuit breaker trips."""
 
 
+# Settings that cannot be swapped under a running bot. Changing the pair would orphan live orders,
+# the KDF block has already been used to activate coins, the providers hold rate-limit and health
+# state, the database and metrics port are already open, and dry-run must go through the live
+# confirmation rather than a config edit.
+RESTART_ONLY_SECTIONS = ("pair", "kdf", "persistence", "metrics", "dry_run")
+
+
+def _diff_paths(old: dict[str, Any], new: dict[str, Any], prefix: str = "") -> list[str]:
+    """Dotted paths whose values differ between two config dumps."""
+    out: list[str] = []
+    for key, value in new.items():
+        if key not in old:
+            out.append(prefix + key)
+        elif isinstance(value, dict) and isinstance(old[key], dict):
+            out.extend(_diff_paths(old[key], value, f"{prefix}{key}."))
+        elif old[key] != value:
+            out.append(prefix + key)
+    return out
+
+
 @dataclass
 class MarketSnapshot:
     rxd: Balance
@@ -77,8 +98,11 @@ class LiquidityBot:
         dry_run: bool,
         clock: Callable[[], float] = time.time,
         sleep: Callable[[float], None] | None = None,
+        config_path: str | None = None,
     ):
         self.cfg = cfg
+        self.config_path = config_path
+        self.last_reload: dict[str, Any] | None = None
         self.kdf = kdf
         self.providers = providers
         self.store = store
@@ -91,6 +115,7 @@ class LiquidityBot:
         self._control_lock = threading.Lock()
         self._pending_pause: str | None = None
         self._pending_resume = False
+        self._pending_reload = False
         self.operator_paused = False
         now = clock()
         self.started_at = now
@@ -145,8 +170,77 @@ class LiquidityBot:
         self.stop()
         return "stop requested; cancelling orders per shutdown config and exiting"
 
+    def request_reload(self) -> str:
+        with self._control_lock:
+            self._pending_reload = True
+        self._wake.set()
+        return "reload requested; the result appears in the status within one cycle"
+
     def recent_events(self, limit: int = 50) -> list[dict[str, Any]]:
         return self.store.recent_events(limit)
+
+    # ------------------------------------------------------------- config reload
+    def reload_config(self) -> dict[str, Any]:
+        """Re-read the YAML and apply everything that is safe to change while running.
+
+        Settings in :data:`RESTART_ONLY_SECTIONS` (plus the provider list and the log format)
+        keep their current values and are reported back, so the in-memory config always
+        matches what the bot is actually doing.
+        """
+        if not self.config_path:
+            return {"ok": False, "error": "this process was not told where its config file is"}
+        try:
+            new = load_config(self.config_path)
+        except Exception as exc:  # noqa: BLE001 - a bad edit must not stop a running bot
+            result = {"ok": False, "error": f"config rejected, nothing changed: {exc}", "at": self.clock()}
+            log.error("config reload rejected", error=str(exc))
+            self.store.record_event("ERROR", "reload", f"rejected: {exc}")
+            self.last_reload = result
+            return result
+
+        needs_restart = [s for s in RESTART_ONLY_SECTIONS if getattr(new, s) != getattr(self.cfg, s)]
+        if new.pricing.providers != self.cfg.pricing.providers:
+            needs_restart.append("pricing.providers")
+        if new.logging.format != self.cfg.logging.format:
+            needs_restart.append("logging.format")
+
+        # Keep the restart-only values from the running config so nothing is half-applied.
+        applied = new.model_copy(update={
+            **{s: getattr(self.cfg, s) for s in RESTART_ONLY_SECTIONS},
+            "pricing": new.pricing.model_copy(update={"providers": self.cfg.pricing.providers}),
+            "logging": self.cfg.logging.model_copy(update={"level": new.logging.level}),
+        })
+        changed = _diff_paths(self.cfg.model_dump(mode="json"), applied.model_dump(mode="json"))
+        self.cfg = applied
+        self._retune()
+        result = {"ok": True, "changed": changed, "needs_restart": needs_restart, "at": self.clock()}
+        if changed:
+            log.info("config reloaded", changed=changed, needs_restart=needs_restart)
+            self.store.record_event("INFO", "reload", "applied: " + ", ".join(changed))
+        else:
+            log.info("config reloaded; nothing changed", needs_restart=needs_restart)
+        if needs_restart:
+            log.warning("some settings need a bot restart and were not applied", keys=needs_restart)
+            self.store.record_event("WARNING", "reload", "needs restart: " + ", ".join(needs_restart))
+        self.last_reload = result
+        return result
+
+    def _retune(self) -> None:
+        """Push reloaded values into the objects built from them at startup."""
+        s = self.cfg.safety
+        self.price_monitor.max_move_pct = s.max_price_move_pct
+        self.price_monitor.window_seconds = s.max_price_move_window_seconds
+        self.anchor.window_seconds = s.anchor_window_seconds
+        self.anchor.max_deviation_pct = s.max_anchor_deviation_pct
+        self.anchor.min_span_seconds = s.anchor_min_span_seconds
+        self.pause.cooldown_seconds = s.cooldown_seconds
+        self.pause.recovery_seconds = s.recovery_seconds
+        self.rpc_failures.limit = max(1, s.rpc_failure_limit)
+        self.order_errors.limit = max(1, s.order_error_limit)
+        logging.getLogger().setLevel(self.cfg.logging.level.upper())
+        update_trading = getattr(self.kdf, "update_trading", None)
+        if callable(update_trading):  # confirmations and min_volume live on the KDF client
+            update_trading(self.cfg.trading, self.cfg.order_sizing.min_volume_fraction)
 
     def clear_events(self) -> str:
         n = self.store.clear_events()
@@ -155,8 +249,10 @@ class LiquidityBot:
 
     def _apply_control_requests(self, now: float) -> None:
         with self._control_lock:
-            pause, resume = self._pending_pause, self._pending_resume
-            self._pending_pause, self._pending_resume = None, False
+            pause, resume, reload = self._pending_pause, self._pending_resume, self._pending_reload
+            self._pending_pause, self._pending_resume, self._pending_reload = None, False, False
+        if reload:
+            self.reload_config()
         if pause is not None:
             self.operator_paused = True
             log.warning("operator pause", reason=pause)
@@ -709,6 +805,7 @@ class LiquidityBot:
                             "amount": str(a.amount) if a.amount else None} for a in self.last_plan.actions]
                           if self.last_plan else []),
             "recent_events": self.store.recent_events(15),
+            "last_reload": self.last_reload,
             "resume_in_seconds": self.pause.seconds_until_resume(now),
             "fair_price_rxd_per_ltc": str(ref.fair_rxd_per_ltc) if ref else None,
             "target_bid_rxd_per_ltc": str(t.bid_rxd_per_ltc) if t and t.bid_rxd_per_ltc else None,

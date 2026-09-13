@@ -208,6 +208,14 @@ Environment variables (`.env` is loaded automatically):
 | `COINGECKO_API_KEY`, `COINPAPRIKA_API_KEY` | optional |
 | `MM_BOT_CONTROL_TOKEN` | enables the HTTP control API; requests must send `Authorization: Bearer <token>` (the desktop app sets this per launch) |
 
+With the control API enabled, `POST /control/reload` re-reads the file and applies
+everything that can change under a running bot: offsets, thresholds, order lifetime,
+inventory bounds and skew, sizing, reserves, every safety limit including the anchor,
+crossing behaviour and shutdown behaviour. The trading pair, dry-run versus live, the
+KDF block, the price provider list, the database path and the metrics port keep their
+launch values and are reported back so you know a restart is still needed. An invalid
+file changes nothing.
+
 Validate: `rxdltc-mm --check-config`.
 
 ### Reference price providers

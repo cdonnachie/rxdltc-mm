@@ -81,6 +81,7 @@ export interface BotStatus {
     asks: BookLevel[];
     bids: BookLevel[];
   } | null;
+  last_reload?: { ok: boolean; error?: string; changed?: string[]; needs_restart?: string[]; at?: number } | null;
   last_plan?: { kind: string; side: string; reason: string; uuid: string | null; price_rxd_per_ltc: string | null; amount: string | null }[];
   recent_events?: { ts: number; level: string; kind: string; message: string }[];
   uptime_seconds?: number;
@@ -150,7 +151,7 @@ export const api = {
   botStop: () => invoke<string>("bot_stop"),
   botProcess: () => invoke<ProcessInfo>("bot_process"),
   botStatus: () => invoke<BotStatus>("bot_status"),
-  botControl: (action: "pause" | "resume" | "cancel_all" | "stop" | "clear_events", reason?: string) =>
+  botControl: (action: "pause" | "resume" | "cancel_all" | "stop" | "clear_events" | "reload", reason?: string) =>
     invoke<{ ok: boolean; message: string }>("bot_control", { action, reason: reason ?? null }),
   botCheckConfig: () => invoke<{ ok: boolean; output: string }>("bot_check_config"),
   configRead: () => invoke<string>("config_read"),
