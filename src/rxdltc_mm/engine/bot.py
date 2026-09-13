@@ -653,9 +653,13 @@ class LiquidityBot:
                 self.stats = self.store.add_stats(two_sided_seconds=self.cfg.poll_interval_seconds)
         providers: dict[str, Any] = {}
         for p in self.providers:
+            legs = ref.source_usd.get(p.name, {}) if ref else {}
             providers[p.name] = {"healthy": p.health.healthy, "consecutive_failures": p.health.consecutive_failures,
                                  "last_error": p.health.last_error,
-                                 "price_rxd_per_ltc": str(ref.source_prices[p.name]) if ref and p.name in ref.source_prices else None}
+                                 "price_rxd_per_ltc": str(ref.source_prices[p.name]) if ref and p.name in ref.source_prices else None,
+                                 "rxd_usd": str(legs["RXD"]) if "RXD" in legs else None,
+                                 "ltc_usd": str(legs["LTC"]) if "LTC" in legs else None,
+                                 "synthetic": bool(ref and p.name in ref.synthetic_sources)}
         status = {
             "bot_version": __version__,
             "state": self.sm.state.value, "state_reason": self.sm.reason, "dry_run": int(self.dry_run),

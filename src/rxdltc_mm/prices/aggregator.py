@@ -40,6 +40,9 @@ class ReferencePrice:
     rejected: dict[str, str] = field(default_factory=dict)  # source -> reason
     rxd_usd: Decimal | None = None  # median USD price of one RXD over the used sources (informational)
     ltc_usd: Decimal | None = None  # median USD price of one LTC over the used sources (informational)
+    # per-source USD legs, e.g. {"nonkyc": {"RXD": ..., "LTC": ...}}. A single-leg source
+    # (Gleec CEX supplies only LTC) appears with just that leg.
+    source_usd: dict[str, dict[str, Decimal]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,9 @@ class AggregationResult:
     @property
     def ok(self) -> bool:
         return self.reference is not None
+
+
+_USD_LIKE = frozenset({"USD", "USDT", "USDC"})
 
 
 def _median(values: list[Decimal]) -> Decimal:
@@ -146,7 +152,7 @@ def aggregate(results: list[ProviderResult], cfg: PricingConfig, now: float) -> 
 
     def usd_leg(coin: str) -> Decimal | None:
         vals = [valid_legs[s][coin].price for s in used if coin in valid_legs.get(s, {})
-                and valid_legs[s][coin].quote_currency.upper() in ("USD", "USDT", "USDC")]
+                and valid_legs[s][coin].quote_currency.upper() in _USD_LIKE]
         return _median(vals) if vals else None
 
     ref = ReferencePrice(
@@ -160,5 +166,10 @@ def aggregate(results: list[ProviderResult], cfg: PricingConfig, now: float) -> 
         rejected=rejected,
         rxd_usd=usd_leg("RXD"),
         ltc_usd=usd_leg("LTC"),
+        source_usd={
+            s: {c: leg.price for c, leg in valid_legs[s].items() if leg.quote_currency.upper() in _USD_LIKE}
+            for s in used
+            if s in valid_legs
+        },
     )
     return AggregationResult(ref, "ok", rejected, candidates)

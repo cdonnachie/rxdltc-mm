@@ -187,17 +187,24 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
           ) : <span className="muted">nothing planned yet</span>}
           <h2 style={{ marginTop: 14 }}>Providers</h2>
           <table>
+            <thead>
+              <tr><th>source</th><th></th><th className="num">{base}/{quote}</th><th className="num">$/{base}</th><th className="num">$/{quote}</th></tr>
+            </thead>
             <tbody>
               {Object.entries(status.providers ?? {}).map(([name, p]) => (
-                <tr key={name}>
-                  <td>{name}</td>
+                <tr key={name} title={p.synthetic ? "synthetic: this source supplies one leg only, the other comes from the median of the rest" : p.last_error ?? ""}>
+                  <td>{name}{p.synthetic ? <span className="muted small"> syn</span> : null}</td>
                   <td><span className={`badge ${p.healthy ? "green" : "red"}`}>{p.healthy ? "ok" : "fail"}</span></td>
                   <td className="num">{fmtM(p.price_rxd_per_ltc)}</td>
-                  <td className="small muted">{p.last_error ?? ""}</td>
+                  <td className="num">{p.rxd_usd ? fmtUsd(p.rxd_usd, 8) : "–"}</td>
+                  <td className="num">{p.ltc_usd ? fmtUsd(p.ltc_usd) : "–"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {Object.values(status.providers ?? {}).some((p) => p.last_error) && (
+            <p className="muted small">{Object.entries(status.providers ?? {}).filter(([, p]) => p.last_error).map(([n, p]) => `${n}: ${p.last_error}`).join(" · ")}</p>
+          )}
         </div>
         <div className="card">
           <h2>Statistics</h2>

@@ -104,3 +104,12 @@ def test_non_positive_price_rejected_by_provider_layer():
     assert not r.ok and p.health.consecutive_failures == 1
     p2 = StaticPriceProvider("ok", "0.00002", "56")
     assert p2.fetch().ok and p2.health.healthy
+
+
+def test_per_source_usd_legs_are_exposed():
+    out = aggregate([_res("gecko", "0.00002", "56"), _res("nonkyc", "0.0000202", "56.2"), _res("gleec", None, "56.1")], CFG, NOW)
+    assert out.ok
+    legs = out.reference.source_usd
+    assert legs["gecko"] == {"RXD": Decimal("0.00002"), "LTC": Decimal("56")}
+    assert legs["gleec"] == {"LTC": Decimal("56.1")}  # single-leg source carries only its own leg
+    assert "gleec" in out.reference.synthetic_sources

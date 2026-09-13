@@ -88,7 +88,15 @@ export interface BotStatus {
   two_sided_seconds_total?: string;
   rpc_failures_total?: number;
   order_errors_total?: number;
-  providers?: Record<string, { healthy: boolean; consecutive_failures: number; last_error: string | null; price_rxd_per_ltc: string | null }>;
+  providers?: Record<string, {
+    healthy: boolean;
+    consecutive_failures: number;
+    last_error: string | null;
+    price_rxd_per_ltc: string | null;
+    rxd_usd?: string | null;
+    ltc_usd?: string | null;
+    synthetic?: boolean;
+  }>;
 }
 
 export interface SetupStatus {
