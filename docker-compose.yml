@@ -7,9 +7,15 @@
 #
 # Put secrets in ./.env (see .env.example); compose passes them as environment.
 #
-# For monitoring:  docker compose --profile monitoring up -d
-# and set `metrics.bind: 0.0.0.0` in config.yaml so Prometheus can reach the bot inside
-# the network. 127.0.0.1 would only be reachable from inside the bot's own container.
+# Everything together:      docker compose --profile monitoring up -d
+# Bot and KDF only:         docker compose up -d
+# Monitoring only:          docker compose --profile monitoring up -d prometheus grafana
+#
+# With the bot in Docker, set `metrics.bind: 0.0.0.0` in config.yaml so Prometheus can reach
+# it inside the network; 127.0.0.1 would only be reachable from inside the bot's container.
+#
+# If the bot runs on the host instead of in Docker (a desktop install, or systemd), use the
+# standalone stack that scrapes the host: docker compose -f deploy/monitoring-compose.yml up -d
 
 services:
   kdf:
@@ -53,8 +59,8 @@ services:
     image: prom/prometheus:v3.1.0
     profiles: ["monitoring"]
     restart: unless-stopped
-    depends_on:
-      - bot
+    # No depends_on: Prometheus retries a target that is not up yet, and depending on the bot
+    # would drag the bot and KDF along whenever you start monitoring on its own.
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=90d

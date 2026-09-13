@@ -428,20 +428,32 @@ safety pause raises an alert rather than looking like silence. Because the watch
 lives elsewhere, it still fires when the whole host goes away, which monitoring
 running on that host cannot do. Failures to ping are logged and never affect trading.
 
-**Prometheus and Grafana answer "how is it behaving".** The compose file carries both
-behind a profile:
+**Prometheus and Grafana answer "how is it behaving".** Two ways to run them, depending
+on where the bot itself lives:
 
 ```bash
+# bot in Docker too: everything on one private network
 docker compose --profile monitoring up -d
-ssh -L 3000:127.0.0.1:3000 user@your-vps   # then open http://localhost:3000
+# monitoring only, when the bot and KDF are already running in Docker
+docker compose --profile monitoring up -d prometheus grafana
+# bot on the host (desktop app, systemd, or a terminal): standalone stack that scrapes it
+docker compose -f deploy/monitoring-compose.yml up -d
+
+ssh -L 3000:127.0.0.1:3000 user@your-vps   # remote hosts; then open http://localhost:3000
 ```
 
 Grafana is bound to localhost, so reach it over a tunnel rather than opening port
 3000. A dashboard is provisioned automatically with quotes against fair value, the
 per-source prices that drive the disagreement breaker, inventory share against its
 bounds, balances, swaps, errors and provider health. Set `GRAFANA_USER` and
-`GRAFANA_PASSWORD` in `.env`, and set `metrics.bind: 0.0.0.0` in `config.yaml` so
-Prometheus can reach the bot inside the compose network.
+`GRAFANA_PASSWORD` in `.env`.
+
+Prometheus has to be able to reach the bot's metrics port, which depends on where the
+bot runs. In Docker, set `metrics.bind: 0.0.0.0`; the port stays private to the compose
+network. On the host with Docker Desktop, leave it at `127.0.0.1` and the standalone
+stack reaches it through `host.docker.internal`. On the host under Linux, that name maps
+to the bridge gateway, so bind the metrics port to that gateway address (usually
+`172.17.0.1`) or to `0.0.0.0` behind a firewall rule.
 
 Run both if you like, but if you only do one thing, do the heartbeat.
 

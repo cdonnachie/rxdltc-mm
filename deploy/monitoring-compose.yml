@@ -1,0 +1,59 @@
+# Prometheus and Grafana on their own, scraping a bot that runs on the host rather than
+# in Docker: the desktop app, a systemd unit, or just `rxdltc-mm` in a terminal.
+#
+#   docker compose -f deploy/monitoring-compose.yml up -d
+#   ssh -L 3000:127.0.0.1:3000 user@host      # remote hosts only
+#   open http://localhost:3000                 (admin / changeme unless overridden)
+#
+# Reaching the bot differs by platform:
+#
+#   Windows and macOS (Docker Desktop): works as is. host.docker.internal is proxied through
+#   the VM, so a bot bound to 127.0.0.1 is reachable and stays private to the machine.
+#
+#   Linux: host.docker.internal maps to the bridge gateway (usually 172.17.0.1), which cannot
+#   reach a service on the host's loopback. Either set `metrics.bind: 172.17.0.1` in
+#   config.yaml, which keeps it off every other interface, or bind 0.0.0.0 and firewall
+#   port 9109. Check the gateway with: docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'
+#
+# Stop it with:  docker compose -f deploy/monitoring-compose.yml down
+
+name: rxdltc-mm-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=90d
+      - --web.listen-address=0.0.0.0:9090
+    volumes:
+      - ./prometheus.host.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      # Docker Desktop provides this name already; the mapping is what Linux needs.
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "9090"
+
+  grafana:
+    image: grafana/grafana-oss:11.5.1
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  prometheus-data:
+  grafana-data:

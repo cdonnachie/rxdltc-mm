@@ -1,0 +1,14 @@
+# Scrape config for a bot running on the host rather than in Docker.
+# Used by deploy/monitoring-compose.yml.
+#
+# host.docker.internal resolves to the machine running Docker. On Docker Desktop the bot
+# can keep its metrics port on 127.0.0.1; on Linux it must be bound to an address the
+# bridge can reach (see the notes in monitoring-compose.yml).
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: rxdltc-mm
+    static_configs:
+      - targets: ["host.docker.internal:9109"]
