@@ -138,6 +138,39 @@ class Store:
                 (uuid, side, my_coin, other_coin, str(my_amount), str(other_amount), started_at, int(finished), int(success), time.time()),
             )
 
+    def completed_swaps(self) -> list[tuple[str, Decimal, Decimal, float]]:
+        """Successful swaps on the pair as (side, my_amount, other_amount, started_at), oldest first."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT side, my_amount, other_amount, started_at FROM swaps "
+                "WHERE finished = 1 AND success = 1 AND side IN ('bid', 'ask') ORDER BY started_at"
+            ).fetchall()
+        out: list[tuple[str, Decimal, Decimal, float]] = []
+        for side, mine, other, started in rows:
+            try:
+                out.append((str(side), Decimal(str(mine)), Decimal(str(other)), float(started or 0)))
+            except Exception:  # noqa: BLE001 - one corrupt row must not hide the rest
+                continue
+        return out
+
+    def fair_price_at(self, ts: float, max_gap_seconds: float = 900.0) -> Decimal | None:
+        """The recorded fair price closest to ``ts``, if one exists within ``max_gap_seconds``."""
+        with self._lock:
+            before = self._conn.execute(
+                "SELECT ts, fair_rxd_per_ltc FROM reference_prices WHERE fair_rxd_per_ltc IS NOT NULL AND ts <= ? "
+                "ORDER BY ts DESC LIMIT 1", (ts,)).fetchone()
+            after = self._conn.execute(
+                "SELECT ts, fair_rxd_per_ltc FROM reference_prices WHERE fair_rxd_per_ltc IS NOT NULL AND ts > ? "
+                "ORDER BY ts ASC LIMIT 1", (ts,)).fetchone()
+        candidates = [r for r in (before, after) if r is not None and abs(float(r[0]) - ts) <= max_gap_seconds]
+        if not candidates:
+            return None
+        best = min(candidates, key=lambda r: abs(float(r[0]) - ts))
+        try:
+            return Decimal(str(best[1]))
+        except Exception:  # noqa: BLE001
+            return None
+
     def record_event(self, level: str, kind: str, message: str, ts: float | None = None) -> None:
         with self._lock:
             self._conn.execute("INSERT INTO events(ts, level, kind, message) VALUES (?, ?, ?, ?)",

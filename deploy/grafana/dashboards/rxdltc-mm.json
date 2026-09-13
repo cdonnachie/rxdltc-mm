@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -875,6 +875,114 @@
           }
         },
         "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Trading P&L versus holding",
+      "description": "Effect of trading compared with never trading, at current prices. Execution edge is what the spread earned on each fill; inventory effect is what the market did to the traded coins afterwards. The two add up to the total. Miner fees are excluded.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "rxdltc-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rxdltc_mm_pnl_vs_hold_usd",
+          "legendFormat": "total vs hold"
+        },
+        {
+          "refId": "B",
+          "expr": "rxdltc_mm_pnl_execution_edge_usd",
+          "legendFormat": "execution edge"
+        },
+        {
+          "refId": "C",
+          "expr": "rxdltc_mm_pnl_inventory_effect_usd",
+          "legendFormat": "inventory effect"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total vs hold"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "execution edge"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "inventory effect"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
       }
     }
   ]

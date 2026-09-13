@@ -36,6 +36,7 @@ from rxdltc_mm.kdf.models import Balance, MakerOrder, Orderbook, SwapInfo
 from rxdltc_mm.kdf.rpc import KdfError
 from rxdltc_mm.logging_setup import get_logger
 from rxdltc_mm.persistence import Store
+from rxdltc_mm.pnl import compute_pnl, fill_from_swap
 from rxdltc_mm.prices.aggregator import AggregationResult, ReferencePrice, aggregate
 from rxdltc_mm.prices.base import PriceProvider
 from rxdltc_mm.pricing import (
@@ -773,6 +774,32 @@ class LiquidityBot:
         return (f"{self.cfg.pair.base}/{self.cfg.pair.quote} fair={fair} bid={bid} ask={ask} "
                 f"{self.cfg.pair.base}={rxd} {self.cfg.pair.quote}={ltc}{live} state={self.sm.state.value}{mode}")
 
+    def _pnl(self, ref: ReferencePrice | None) -> dict[str, Any]:
+        """Trading P&L against holding, from the recorded swaps. See :mod:`rxdltc_mm.pnl`."""
+        fills = []
+        for side, mine, other, started in self.store.completed_swaps():
+            try:
+                fills.append(fill_from_swap(Side(side), mine, other, started))
+            except ValueError:
+                continue
+        p = compute_pnl(fills, self.store.fair_price_at,
+                        ref.rxd_usd if ref else None, ref.ltc_usd if ref else None)
+
+        def money(v: Decimal | None) -> str | None:
+            return str(v.quantize(Decimal("0.0001"))) if v is not None else None
+
+        return {
+            "swaps": p.swaps,
+            "net_base": str(p.net_base),
+            "net_quote": str(p.net_quote),
+            "vs_hold_usd": money(p.vs_hold_usd),
+            "edge_usd": money(p.edge_usd),
+            "edge_quote": str(p.edge_quote) if p.edge_quote is not None else None,
+            "inventory_usd": money(p.inventory_usd),
+            "volume_usd": money(p.volume_usd),
+            "edge_coverage": p.edge_coverage,
+        }
+
     def _publish_status(self) -> None:
         now = self.clock()
         snap, t, ref = self.snapshot, self.targets, self.reference
@@ -795,8 +822,14 @@ class LiquidityBot:
                                  "rxd_usd": str(legs["RXD"]) if "RXD" in legs else None,
                                  "ltc_usd": str(legs["LTC"]) if "LTC" in legs else None,
                                  "synthetic": bool(ref and p.name in ref.synthetic_sources)}
+        pnl = self._pnl(ref)
         status = {
             "bot_version": __version__,
+            "pnl": pnl,
+            "pnl_vs_hold_usd": pnl["vs_hold_usd"],
+            "pnl_execution_edge_usd": pnl["edge_usd"],
+            "pnl_inventory_effect_usd": pnl["inventory_usd"],
+            "trading_volume_usd": pnl["volume_usd"],
             "state": self.sm.state.value, "state_reason": self.sm.reason, "dry_run": int(self.dry_run),
             "pair": f"{self.cfg.pair.base}/{self.cfg.pair.quote}", "base": self.cfg.pair.base, "quote": self.cfg.pair.quote,
             "poll_interval_seconds": self.cfg.poll_interval_seconds, "started_at": self.started_at, "now": now,

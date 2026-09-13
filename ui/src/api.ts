@@ -82,6 +82,17 @@ export interface BotStatus {
     bids: BookLevel[];
   } | null;
   last_reload?: { ok: boolean; error?: string; changed?: string[]; needs_restart?: string[]; at?: number } | null;
+  pnl?: {
+    swaps: number;
+    net_base: string;
+    net_quote: string;
+    vs_hold_usd: string | null;
+    edge_usd: string | null;
+    edge_quote: string | null;
+    inventory_usd: string | null;
+    volume_usd: string | null;
+    edge_coverage: number;
+  } | null;
   last_plan?: { kind: string; side: string; reason: string; uuid: string | null; price_rxd_per_ltc: string | null; amount: string | null }[];
   recent_events?: { ts: number; level: string; kind: string; message: string }[];
   uptime_seconds?: number;

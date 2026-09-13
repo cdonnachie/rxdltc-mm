@@ -16,6 +16,57 @@ function Address({ label, value, holding }: { label: string; value: string | nul
   );
 }
 
+function signedUsd(v: string | null | undefined): { text: string; color?: string } {
+  if (v === null || v === undefined) return { text: "–" };
+  const n = Number(v);
+  const text = (n >= 0 ? "+" : "−") + fmtUsd(Math.abs(n));
+  return { text, color: n > 0 ? "var(--green)" : n < 0 ? "var(--red)" : undefined };
+}
+
+function PnlCard({ status }: { status: BotStatus }) {
+  const p = status.pnl;
+  const base = status.base ?? "RXD", quote = status.quote ?? "LTC";
+  if (!p) return null;
+  const total = signedUsd(p.vs_hold_usd), edge = signedUsd(p.edge_usd), inv = signedUsd(p.inventory_usd);
+  return (
+    <div className="card">
+      <h2>Performance versus holding</h2>
+      {p.swaps === 0 ? (
+        <p className="small muted" style={{ margin: 0 }}>No completed swaps yet, so there is nothing to compare.</p>
+      ) : (
+        <div className="grid cols-4" style={{ alignItems: "start" }}>
+          <div className="stat">
+            <span className="muted small">Trading effect</span>
+            <span className="value" style={{ color: total.color }}>{total.text}</span>
+            <span className="sub">compared with never trading</span>
+          </div>
+          <div className="stat">
+            <span className="muted small">Execution edge</span>
+            <span className="value" style={{ color: edge.color, fontSize: 18 }}>{edge.text}</span>
+            <span className="sub">fills against fair price{p.edge_coverage < p.swaps ? ` (${p.edge_coverage} of ${p.swaps} swaps)` : ""}</span>
+          </div>
+          <div className="stat">
+            <span className="muted small">Inventory effect</span>
+            <span className="value" style={{ color: inv.color, fontSize: 18 }}>{inv.text}</span>
+            <span className="sub">price moves after the trades</span>
+          </div>
+          <div className="stat">
+            <span className="muted small">Activity</span>
+            <span className="value" style={{ fontSize: 18 }}>{p.swaps} swap{p.swaps === 1 ? "" : "s"}</span>
+            <span className="sub">{fmtUsd(p.volume_usd)} volume · net {fmtNum(p.net_base, 0)} {base}, {fmtNum(p.net_quote, 8)} {quote}</span>
+          </div>
+        </div>
+      )}
+      {p.swaps > 0 && (
+        <p className="small muted" style={{ margin: "10px 0 0" }}>
+          Edge is what the spread earned on each fill. Inventory is what the market did to the traded coins
+          afterwards; on a trending coin it usually outweighs the edge. Miner fees are not included.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RebalanceCard({ status }: { status: BotStatus }) {
   const base = status.base ?? "RXD", quote = status.quote ?? "LTC";
   const hint = rebalanceHint(status);
@@ -145,6 +196,7 @@ export default function Dashboard({ status }: { status: BotStatus | null }) {
         </div>
       </div>
 
+      <PnlCard status={status} />
       <RebalanceCard status={status} />
 
       <div className="grid cols-3">
